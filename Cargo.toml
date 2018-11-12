@@ -27,9 +27,7 @@ members = [
   "romio-buf",
   "romio-channel",
   "romio-codec",
-  "romio-executor",
   "romio-fs",
-  "romio-io",
   "romio-reactor",
   "romio-signal",
   "romio-threadpool",
@@ -55,8 +53,6 @@ appveyor = { repository = "", id = "" }
 bytes = "0.4"
 num_cpus = "1.8.0"
 romio-codec = { version = "0.1.0", path = "romio-codec" }
-romio-io = { version = "0.1.6", path = "romio-io" }
-romio-executor = { version = "0.1.5", path = "romio-executor" }
 romio-reactor = { version = "0.1.1", path = "romio-reactor" }
 romio-threadpool = { version = "0.1.4", path = "romio-threadpool" }
 romio-tcp = { version = "0.1.0", path = "romio-tcp" }
@@ -92,9 +88,7 @@ time = "0.1"
 romio = { path = "." }
 romio-async-await  = { path = "./romio-async-await" }
 romio-codec = { path = "./romio-codec" }
-romio-executor = { path = "./romio-executor" }
 romio-fs = { path = "./romio-fs" }
-romio-io = { path = "./romio-io" }
 romio-reactor = { path = "./romio-reactor" }
 romio-signal = { path = "./romio-signal" }
 romio-tcp = { path = "./romio-tcp" }
