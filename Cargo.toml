@@ -23,7 +23,6 @@ keywords = ["io", "async", "non-blocking", "futures"]
 
 members = [
   "./",
-  "romio-async-await",
   "romio-buf",
   "romio-channel",
   "romio-codec",
@@ -36,13 +35,6 @@ members = [
   "romio-tls",
   "romio-udp",
   "romio-uds",
-]
-
-[features]
-# This feature comes with no promise of stability. Things will
-# break with each patch release. Use at your own risk.
-async-await-preview = [
-  "romio-async-await/async-await-preview",
 ]
 
 [badges]
@@ -65,15 +57,12 @@ futures = "0.1.20"
 # Needed until `reactor` is removed from `romio`.
 mio = "0.6.14"
 
-# Needed for async/await preview support
-romio-async-await = { version = "0.1.0", path = "romio-async-await", optional = true }
-
 [target.'cfg(unix)'.dependencies]
 romio-uds = { version = "0.2.1", path = "romio-uds" }
 
 [dev-dependencies]
 env_logger = { version = "0.5", default-features = false }
-flate2 = { version = "1", features = ["romio"] }
+flate2 = { version = "1", features = ["tokio"] }
 futures-cpupool = "0.1"
 http = "0.1"
 httparse = "1.0"
@@ -86,7 +75,6 @@ time = "0.1"
 
 [patch.crates-io]
 romio = { path = "." }
-romio-async-await  = { path = "./romio-async-await" }
 romio-codec = { path = "./romio-codec" }
 romio-fs = { path = "./romio-fs" }
 romio-reactor = { path = "./romio-reactor" }
