@@ -1,0 +1,35 @@
+[package]
+name = "romio-threadpool"
+# When releasing to crates.io:
+# - Update html_root_url.
+# - Update CHANGELOG.md.
+# - Update doc URL.
+# - Create "v0.1.x" git tag.
+version = "0.1.8"
+documentation = "https://docs.rs/romio-threadpool/0.1.8/romio_threadpool"
+repository = "https://github.com/romio-rs/romio"
+homepage = "https://github.com/romio-rs/romio"
+license = "MIT"
+authors = ["Carl Lerche <me@carllerche.com>"]
+description = """
+A task scheduler backed by a work-stealing thread pool.
+"""
+keywords = ["futures", "romio"]
+categories = ["concurrency", "asynchronous"]
+
+[dependencies]
+romio-executor = { version = "0.1.2", path = "../romio-executor" }
+futures = "0.1.19"
+crossbeam-deque = "0.6.1"
+crossbeam-utils = "0.6.0"
+num_cpus = "1.2"
+rand = "0.5"
+log = "0.4"
+
+[dev-dependencies]
+romio-timer = "0.1"
+env_logger = "0.5"
+
+# For comparison benchmarks
+futures-cpupool = "0.1.7"
+threadpool = "1.7.1"

@@ -1,0 +1,30 @@
+[package]
+name = "romio-timer"
+# When releasing to crates.io:
+# - Update html_root_url.
+# - Update CHANGELOG.md.
+# - Update doc URL.
+# - Create "v0.2.x" git tag.
+version = "0.2.7"
+authors = ["Carl Lerche <me@carllerche.com>"]
+license = "MIT"
+readme = "README.md"
+documentation = "https://docs.rs/romio-timer/0.2.7/romio_timer"
+repository = "https://github.com/romio-rs/romio"
+homepage = "https://github.com/romio-rs/romio"
+description = """
+Timer facilities for Tokio
+"""
+
+[dependencies]
+futures = "0.1.19"
+romio-executor = { version = "0.1.1", path = "../romio-executor" }
+crossbeam-utils = "0.6.0"
+
+# Backs `DelayQueue`
+slab = "0.4.1"
+
+[dev-dependencies]
+rand = "0.5"
+romio-mock-task = "0.1.0"
+romio = { version = "0.1.7", path = "../" }

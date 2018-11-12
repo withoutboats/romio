@@ -1,0 +1,41 @@
+[package]
+name = "romio-signal"
+
+# When releasing to crates.io:
+# - Update html_root_url.
+# - Update CHANGELOG.md.
+# - Update doc URL.
+# - Create "v0.2.x" git tag.
+version = "0.2.6"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+license = "MIT"
+repository = "https://github.com/romio-rs/romio"
+homepage = "https://github.com/romio-rs/romio"
+documentation = "https://docs.rs/romio-signal/0.2.6/romio_signal"
+description = """
+An implementation of an asynchronous Unix signal handling backed futures.
+"""
+categories = ["asynchronous"]
+
+[badges]
+travis-ci = { repository = "romio-rs/romio" }
+appveyor = { repository = "carllerche/romio", id = "s83yxhy9qeb58va7" }
+
+[dependencies]
+futures = "0.1.11"
+mio = "0.6.14"
+romio-reactor = { version = "0.1.0", path = "../romio-reactor" }
+romio-executor = { version = "0.1.0", path = "../romio-executor" }
+romio-io = { version = "0.1", path = "../romio-io" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+mio-uds = "0.6"
+signal-hook = "0.1"
+
+[dev-dependencies]
+romio = { version = "0.1.8", path = ".." }
+
+[target.'cfg(windows)'.dependencies.winapi]
+version = "0.3"
+features = ["minwindef", "wincon"]
