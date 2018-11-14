@@ -7,7 +7,7 @@ extern crate num_cpus;
 extern crate test;
 extern crate tokio;
 extern crate tokio_io_pool;
-extern crate tokio_reactor;
+extern crate romio_reactor;
 
 const NUM_YIELD: usize = 500;
 const TASKS_PER_CPU: usize = 100;
@@ -18,7 +18,7 @@ mod threadpool {
 
     use test::Bencher;
     use futures::{future, Async};
-    use tokio_reactor::Registration;
+    use romio_reactor::Registration;
     use tokio::runtime::Runtime;
 
     #[bench]
@@ -82,7 +82,7 @@ mod io_pool {
     use futures::{future, Async};
     use test::Bencher;
     use tokio_io_pool::Runtime;
-    use tokio_reactor::Registration;
+    use romio_reactor::Registration;
 
     #[bench]
     fn notify_many(b: &mut Bencher) {

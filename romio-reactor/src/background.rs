@@ -1,13 +1,15 @@
-use {Reactor, Handle};
-use atomic_task::AtomicTask;
+use crate::{Reactor, Handle};
 
-use futures::{Future, Async, Poll, task};
+use futures::{Future, Poll, executor};
+use futures::task::{LocalWaker, AtomicWaker};
+use log::debug;
 
 use std::io;
-use std::thread;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
+use std::thread;
 
 /// Handle to the reactor running on a background thread.
 ///
@@ -42,7 +44,7 @@ struct Shared {
     shutdown: AtomicUsize,
 
     /// Task to notify when the reactor thread enters a shutdown state.
-    shutdown_task: AtomicTask,
+    shutdown_task: AtomicWaker,
 }
 
 /// Notifies the reactor thread to shutdown once the reactor becomes idle.
@@ -66,7 +68,7 @@ impl Background {
         // thread.
         let shared = Arc::new(Shared {
             shutdown: AtomicUsize::new(0),
-            shutdown_task: AtomicTask::new(),
+            shutdown_task: AtomicWaker::new(),
         });
 
         // For the reactor thread
@@ -125,25 +127,23 @@ impl Drop for Background {
         inner.shutdown_now();
 
         let shutdown = Shutdown { inner };
-        let _ = shutdown.wait();
+        let _ = executor::block_on(shutdown);
     }
 }
 
 // ===== impl Shutdown =====
 
 impl Future for Shutdown {
-    type Item = ();
-    type Error = ();
+    type Output = Result<(), ()>;
 
-    fn poll(&mut self) -> Poll<(), ()> {
-        let task = task::current();
-        self.inner.shared.shutdown_task.register_task(task);
+    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        self.inner.shared.shutdown_task.register(lw);
 
         if !self.inner.is_shutdown() {
-            return Ok(Async::NotReady);
+            return Poll::Pending
         }
 
-        Ok(().into())
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -211,7 +211,7 @@ fn run(mut reactor: Reactor, shared: Arc<Shared>) {
     shared.shutdown.store(SHUTDOWN, SeqCst);
 
     // Notify any waiters
-    shared.shutdown_task.notify();
+    shared.shutdown_task.wake();
 
     debug!("background reactor has shutdown");
 }

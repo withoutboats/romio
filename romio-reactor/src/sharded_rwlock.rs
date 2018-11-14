@@ -65,7 +65,7 @@ impl<T> RwLock<T> {
     /// or writers will acquire the lock first.
     ///
     /// Returns an RAII guard which will release this thread's shared access once it is dropped.
-    pub fn read(&self) -> RwLockReadGuard<T> {
+    pub fn read(&self) -> RwLockReadGuard<'_, T> {
         // Take the current thread index and map it to a shard index. Thread indices will tend to
         // distribute shards among threads equally, thus reducing contention due to read-locking.
         let shard_index = thread_index() & (self.shards.len() - 1);
@@ -84,7 +84,7 @@ impl<T> RwLock<T> {
     /// the lock.
     ///
     /// Returns an RAII guard which will drop the write access of this rwlock when dropped.
-    pub fn write(&self) -> RwLockWriteGuard<T> {
+    pub fn write(&self) -> RwLockWriteGuard<'_, T> {
         // Write-lock each shard in succession.
         for shard in &self.shards {
             // The write guard is forgotten, but the lock will be manually unlocked in `drop`.
@@ -99,7 +99,7 @@ impl<T> RwLock<T> {
 }
 
 /// A guard used to release the shared read access of a `RwLock` when dropped.
-pub struct RwLockReadGuard<'a, T: 'a> {
+pub struct RwLockReadGuard<'a, T> {
     parent: &'a RwLock<T>,
     _guard: parking_lot::RwLockReadGuard<'a, ()>,
     _marker: PhantomData<parking_lot::RwLockReadGuard<'a, T>>,
@@ -116,7 +116,7 @@ impl<'a, T> Deref for RwLockReadGuard<'a, T> {
 }
 
 /// A guard used to release the exclusive write access of a `RwLock` when dropped.
-pub struct RwLockWriteGuard<'a, T: 'a> {
+pub struct RwLockWriteGuard<'a, T> {
     parent: &'a RwLock<T>,
     _marker: PhantomData<parking_lot::RwLockWriteGuard<'a, T>>,
 }
@@ -170,7 +170,7 @@ struct ThreadIndices {
     next_index: usize,
 }
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref THREAD_INDICES: Mutex<ThreadIndices> = Mutex::new(ThreadIndices {
         mapping: HashMap::new(),
         free_list: Vec::new(),

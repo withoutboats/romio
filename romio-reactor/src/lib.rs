@@ -1,5 +1,7 @@
+#![feature(futures_api, pin, arbitrary_self_types)]
+
 #![doc(html_root_url = "https://docs.rs/tokio-reactor/0.1.6")]
-#![deny(missing_docs, warnings, missing_debug_implementations)]
+//#![deny(missing_docs, warnings, missing_debug_implementations)]
 
 //! Event loop that drives Tokio I/O resources.
 //!
@@ -30,22 +32,8 @@
 //! [`PollEvented`]: struct.PollEvented.html
 //! [reactor module]: https://docs.rs/tokio/0.1/tokio/reactor/index.html
 
-extern crate crossbeam_utils;
-#[macro_use]
-extern crate futures;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate log;
-extern crate mio;
-extern crate num_cpus;
-extern crate parking_lot;
-extern crate slab;
-extern crate tokio_executor;
-extern crate tokio_io;
-
-mod atomic_task;
 pub(crate) mod background;
+pub mod park;
 mod poll_evented;
 mod registration;
 mod sharded_rwlock;
@@ -58,12 +46,7 @@ pub use self::poll_evented::PollEvented;
 
 // ===== Private imports =====
 
-use atomic_task::AtomicTask;
-use sharded_rwlock::RwLock;
-
-use futures::task::Task;
-use tokio_executor::Enter;
-use tokio_executor::park::{Park, Unpark};
+use crate::sharded_rwlock::RwLock;
 
 use std::{fmt, usize};
 use std::error::Error;
@@ -75,7 +58,9 @@ use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
-use log::Level;
+use futures::executor::Enter;
+use futures::task::{AtomicWaker, LocalWaker};
+use log::{Level, debug, trace, log_enabled};
 use mio::event::Evented;
 use slab::Slab;
 
@@ -127,10 +112,6 @@ pub struct Turn {
 #[derive(Clone, Debug)]
 pub struct SetFallbackError(());
 
-#[deprecated(since = "0.1.2", note = "use SetFallbackError instead")]
-#[doc(hidden)]
-pub type SetDefaultError = SetFallbackError;
-
 #[test]
 fn test_handle_size() {
     use std::mem;
@@ -154,8 +135,8 @@ struct Inner {
 struct ScheduledIo {
     aba_guard: usize,
     readiness: AtomicUsize,
-    reader: AtomicTask,
-    writer: AtomicTask,
+    reader: AtomicWaker,
+    writer: AtomicWaker,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -409,45 +390,26 @@ impl Reactor {
             io.readiness.fetch_or(ready.as_usize(), Relaxed);
 
             if ready.is_writable() || platform::is_hup(&ready) {
-                wr = io.writer.take_to_notify();
+                wr = io.writer.take();
             }
 
             if !(ready & (!mio::Ready::writable())).is_empty() {
-                rd = io.reader.take_to_notify();
+                rd = io.reader.take();
             }
         }
 
         if let Some(task) = rd {
-            task.notify();
+            task.wake();
         }
 
         if let Some(task) = wr {
-            task.notify();
+            task.wake();
         }
-    }
-}
-
-impl Park for Reactor {
-    type Unpark = Handle;
-    type Error = io::Error;
-
-    fn unpark(&self) -> Self::Unpark {
-        self.handle()
-    }
-
-    fn park(&mut self) -> io::Result<()> {
-        self.turn(None)?;
-        Ok(())
-    }
-
-    fn park_timeout(&mut self, duration: Duration) -> io::Result<()> {
-        self.turn(Some(duration))?;
-        Ok(())
     }
 }
 
 impl fmt::Debug for Reactor {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Reactor")
     }
 }
@@ -484,14 +446,6 @@ impl Handle {
     }
 }
 
-impl Unpark for Handle {
-    fn unpark(&self) {
-        if let Some(ref h) = self.inner {
-            h.wakeup();
-        }
-    }
-}
-
 impl Default for Handle {
     /// Returns a "default" handle, i.e., a handle that lazily binds to a reactor.
     fn default() -> Handle {
@@ -500,7 +454,7 @@ impl Default for Handle {
 }
 
 impl fmt::Debug for Handle {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Handle")
     }
 }
@@ -622,7 +576,7 @@ impl HandlePriv {
 }
 
 impl fmt::Debug for HandlePriv {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "HandlePriv")
     }
 }
@@ -633,7 +587,7 @@ impl Inner {
     /// Register an I/O resource with the reactor.
     ///
     /// The registration token is returned.
-    fn add_source(&self, source: &Evented)
+    fn add_source(&self, source: &dyn Evented)
         -> io::Result<usize>
     {
         // Get an ABA guard value
@@ -650,20 +604,20 @@ impl Inner {
         let key = io_dispatch.insert(ScheduledIo {
             aba_guard,
             readiness: AtomicUsize::new(0),
-            reader: AtomicTask::new(),
-            writer: AtomicTask::new(),
+            reader: AtomicWaker::new(),
+            writer: AtomicWaker::new(),
         });
 
-        try!(self.io.register(source,
-                              mio::Token(aba_guard | key),
-                              mio::Ready::all(),
-                              mio::PollOpt::edge()));
+        self.io.register(source,
+                         mio::Token(aba_guard | key),
+                         mio::Ready::all(),
+                         mio::PollOpt::edge())?;
 
         Ok(key)
     }
 
     /// Deregisters an I/O resource from the reactor.
-    fn deregister_source(&self, source: &Evented) -> io::Result<()> {
+    fn deregister_source(&self, source: &dyn Evented) -> io::Result<()> {
         self.io.deregister(source)
     }
 
@@ -673,7 +627,7 @@ impl Inner {
     }
 
     /// Registers interest in the I/O resource associated with `token`.
-    fn register(&self, token: usize, dir: Direction, t: Task) {
+    fn register(&self, token: usize, dir: Direction, t: &LocalWaker) {
         debug!("scheduling direction for: {}", token);
         let io_dispatch = self.io_dispatch.read();
         let sched = io_dispatch.get(token).unwrap();
@@ -683,10 +637,10 @@ impl Inner {
             Direction::Write => (&sched.writer, mio::Ready::writable()),
         };
 
-        task.register_task(t);
+        task.register(t);
 
         if sched.readiness.load(SeqCst) & ready.as_usize() != 0 {
-            task.notify();
+            task.wake();
         }
     }
 }
@@ -698,8 +652,8 @@ impl Drop for Inner {
         // will start returning errors pretty quickly.
         let io = self.io_dispatch.read();
         for (_, io) in io.iter() {
-            io.writer.notify();
-            io.reader.notify();
+            io.writer.wake();
+            io.reader.wake();
         }
     }
 }
@@ -746,7 +700,7 @@ mod platform {
 // ===== impl SetFallbackError =====
 
 impl fmt::Display for SetFallbackError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "{}", self.description())
     }
 }
@@ -754,5 +708,32 @@ impl fmt::Display for SetFallbackError {
 impl Error for SetFallbackError {
     fn description(&self) -> &str {
         "attempted to set fallback reactor while already configured"
+    }
+}
+
+impl crate::park::Park for Reactor {
+    type Unpark = Handle;
+    type Error = io::Error;
+
+    fn unpark(&self) -> Self::Unpark {
+        self.handle()
+    }
+
+    fn park(&mut self) -> io::Result<()> {
+        self.turn(None)?;
+        Ok(())
+    }
+
+    fn park_timeout(&mut self, duration: Duration) -> io::Result<()> {
+        self.turn(Some(duration))?;
+        Ok(())
+    }
+}
+
+impl crate::park::Unpark for Handle {
+    fn unpark(&self) {
+        if let Some(ref h) = self.inner {
+            h.wakeup();
+        }
     }
 }
