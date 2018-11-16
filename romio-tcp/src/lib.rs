@@ -1,5 +1,7 @@
+#![feature(pin, arbitrary_self_types, futures_api)]
 #![doc(html_root_url = "https://docs.rs/tokio-tcp/0.1.2")]
-#![deny(missing_docs, warnings, missing_debug_implementations)]
+// #![deny(missing_docs, warnings, missing_debug_implementations)]
+#![allow(unused_imports)]
 
 //! TCP bindings for `tokio`.
 //!
@@ -22,19 +24,8 @@
 //! [incoming_method]: struct.TcpListener.html#method.incoming
 //! [`Incoming`]: struct.Incoming.html
 
-extern crate bytes;
-#[macro_use]
-extern crate futures;
-extern crate iovec;
-extern crate mio;
-extern crate tokio_io;
-extern crate tokio_reactor;
-
-mod incoming;
 mod listener;
 mod stream;
 
-pub use self::incoming::Incoming;
-pub use self::listener::TcpListener;
-pub use self::stream::TcpStream;
-pub use self::stream::ConnectFuture;
+pub use self::listener::{TcpListener, Incoming};
+pub use self::stream::{TcpStream, ConnectFuture};

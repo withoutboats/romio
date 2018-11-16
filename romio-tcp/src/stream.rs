@@ -2,14 +2,15 @@ use std::fmt;
 use std::io::{self, Read, Write};
 use std::mem;
 use std::net::{self, SocketAddr, Shutdown};
+use std::pin::Pin;
 use std::time::Duration;
 
-use bytes::{Buf, BufMut};
-use futures::{Future, Poll, Async};
+use futures::{ready, Future, Poll};
+use futures::io::{AsyncRead, AsyncWrite};
+use futures::task::LocalWaker;
 use iovec::IoVec;
 use mio;
-use tokio_io::{AsyncRead, AsyncWrite};
-use tokio_reactor::{Handle, PollEvented};
+use romio_reactor::{Handle, PollEvented};
 
 /// An I/O object representing a TCP stream connected to a remote endpoint.
 ///
@@ -119,7 +120,7 @@ impl TcpStream {
     /// `writable`. HUP is always implicitly included on platforms that support
     /// it.
     ///
-    /// If the resource is not ready for a read then `Async::NotReady` is
+    /// If the resource is not ready for a read then `Poll::Pending` is
     /// returned and the current task is notified once a new event is received.
     ///
     /// The stream will remain in a read-ready state until calls to `poll_read`
@@ -131,8 +132,10 @@ impl TcpStream {
     ///
     /// * `ready` includes writable.
     /// * called from outside of a task context.
-    pub fn poll_read_ready(&self, mask: mio::Ready) -> Poll<mio::Ready, io::Error> {
-        self.io.poll_read_ready(mask)
+    pub fn poll_read_ready(&self, lw: &LocalWaker)
+        -> Poll<io::Result<mio::Ready>>
+    {
+        self.io.poll_read_ready(lw)
     }
 
     /// Check the TCP stream's write readiness state.
@@ -140,7 +143,7 @@ impl TcpStream {
     /// This always checks for writable readiness and also checks for HUP
     /// readiness on platforms that support it.
     ///
-    /// If the resource is not ready for a write then `Async::NotReady` is
+    /// If the resource is not ready for a write then `Poll::Pending` is
     /// returned and the current task is notified once a new event is received.
     ///
     /// The I/O resource will remain in a write-ready state until calls to
@@ -149,8 +152,8 @@ impl TcpStream {
     /// # Panics
     ///
     /// This function panics if called from outside of a task context.
-    pub fn poll_write_ready(&self) -> Poll<mio::Ready, io::Error> {
-        self.io.poll_write_ready()
+    pub fn poll_write_ready(&self, lw: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
+        self.io.poll_write_ready(lw)
     }
 
     /// Returns the local address that this stream is bound to.
@@ -161,15 +164,6 @@ impl TcpStream {
     /// Returns the remote address that this stream is connected to.
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().peer_addr()
-    }
-
-    #[deprecated(since = "0.1.2", note = "use poll_peek instead")]
-    #[doc(hidden)]
-    pub fn peek(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        match self.poll_peek(buf)? {
-            Async::Ready(n) => Ok(n),
-            Async::NotReady => Err(io::ErrorKind::WouldBlock.into()),
-        }
     }
 
     /// Receives data on the socket from the remote address to which it is
@@ -184,22 +178,22 @@ impl TcpStream {
     /// On success, returns `Ok(Async::Ready(num_bytes_read))`.
     ///
     /// If no data is available for reading, the method returns
-    /// `Ok(Async::NotReady)` and arranges for the current task to receive a
+    /// `Ok(Poll::Pending)` and arranges for the current task to receive a
     /// notification when the socket becomes readable or is closed.
     ///
     /// # Panics
     ///
     /// This function will panic if called from outside of a task context.
-    pub fn poll_peek(&mut self, buf: &mut [u8]) -> Poll<usize, io::Error> {
-        try_ready!(self.io.poll_read_ready(mio::Ready::readable()));
+    pub fn poll_peek(&mut self, buf: &mut [u8], lw: &LocalWaker) -> Poll<io::Result<usize>> {
+        ready!(self.io.poll_read_ready(lw)?);
 
         match self.io.get_ref().peek(buf) {
-            Ok(ret) => Ok(ret.into()),
+            Ok(ret) => Poll::Ready(Ok(ret.into())),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_read_ready(mio::Ready::readable())?;
-                Ok(Async::NotReady)
+                self.io.clear_read_ready(lw)?;
+                Poll::Pending
             }
-            Err(e) => Err(e),
+            Err(e) => Poll::Ready(Err(e)),
         }
     }
 
@@ -348,165 +342,106 @@ impl TcpStream {
 
 // ===== impl Read / Write =====
 
-impl Read for TcpStream {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.io.read(buf)
-    }
-}
-
-impl Write for TcpStream {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.io.write(buf)
-    }
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
 impl AsyncRead for TcpStream {
-    unsafe fn prepare_uninitialized_buffer(&self, _: &mut [u8]) -> bool {
-        false
+    fn poll_read(&mut self, lw: &LocalWaker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
+        <&TcpStream>::poll_read(&mut &*self, lw, buf)
     }
 
-    fn read_buf<B: BufMut>(&mut self, buf: &mut B) -> Poll<usize, io::Error> {
-        <&TcpStream>::read_buf(&mut &*self, buf)
+    fn poll_vectored_read(&mut self, lw: &LocalWaker, vec: &mut [&mut IoVec])
+        -> Poll<io::Result<usize>>
+    {
+        <&TcpStream>::poll_vectored_read(&mut &*self, lw, vec)
     }
 }
 
 impl AsyncWrite for TcpStream {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        <&TcpStream>::shutdown(&mut &*self)
+    fn poll_write(&mut self, lw: &LocalWaker, buf: &[u8]) -> Poll<io::Result<usize>> {
+        <&TcpStream>::poll_write(&mut &*self, lw, buf)
     }
 
-    fn write_buf<B: Buf>(&mut self, buf: &mut B) -> Poll<usize, io::Error> {
-        <&TcpStream>::write_buf(&mut &*self, buf)
+    fn poll_vectored_write(&mut self, lw: &LocalWaker, vec: &[&IoVec])
+        -> Poll<io::Result<usize>>
+    {
+        <&TcpStream>::poll_vectored_write(&mut &*self, lw, vec)
+    }
+
+    fn poll_flush(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
+        <&TcpStream>::poll_flush(&mut &*self, lw)
+    }
+
+    fn poll_close(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
+        <&TcpStream>::poll_close(&mut &*self, lw)
     }
 }
 
 // ===== impl Read / Write for &'a =====
 
-impl<'a> Read for &'a TcpStream {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        (&self.io).read(buf)
-    }
-}
-
-impl<'a> Write for &'a TcpStream {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        (&self.io).write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        (&self.io).flush()
-    }
-}
-
 impl<'a> AsyncRead for &'a TcpStream {
-    unsafe fn prepare_uninitialized_buffer(&self, _: &mut [u8]) -> bool {
-        false
+    fn poll_read(&mut self, lw: &LocalWaker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
+        (&self.io).poll_read(lw, buf)
     }
 
-    fn read_buf<B: BufMut>(&mut self, buf: &mut B) -> Poll<usize, io::Error> {
-        if let Async::NotReady = self.io.poll_read_ready(mio::Ready::readable())? {
-            return Ok(Async::NotReady)
-        }
+    fn poll_vectored_read(&mut self, lw: &LocalWaker, bufs: &mut [&mut IoVec])
+        -> Poll<io::Result<usize>>
+    {
+        ready!(self.poll_read_ready(lw)?);
 
-        let r = unsafe {
-            // The `IoVec` type can't have a 0-length size, so we create a bunch
-            // of dummy versions on the stack with 1 length which we'll quickly
-            // overwrite.
-            let b1: &mut [u8] = &mut [0];
-            let b2: &mut [u8] = &mut [0];
-            let b3: &mut [u8] = &mut [0];
-            let b4: &mut [u8] = &mut [0];
-            let b5: &mut [u8] = &mut [0];
-            let b6: &mut [u8] = &mut [0];
-            let b7: &mut [u8] = &mut [0];
-            let b8: &mut [u8] = &mut [0];
-            let b9: &mut [u8] = &mut [0];
-            let b10: &mut [u8] = &mut [0];
-            let b11: &mut [u8] = &mut [0];
-            let b12: &mut [u8] = &mut [0];
-            let b13: &mut [u8] = &mut [0];
-            let b14: &mut [u8] = &mut [0];
-            let b15: &mut [u8] = &mut [0];
-            let b16: &mut [u8] = &mut [0];
-            let mut bufs: [&mut IoVec; 16] = [
-                b1.into(), b2.into(), b3.into(), b4.into(),
-                b5.into(), b6.into(), b7.into(), b8.into(),
-                b9.into(), b10.into(), b11.into(), b12.into(),
-                b13.into(), b14.into(), b15.into(), b16.into(),
-            ];
-            let n = buf.bytes_vec_mut(&mut bufs);
-            self.io.get_ref().read_bufs(&mut bufs[..n])
-        };
+        let r = self.io.get_ref().read_bufs(bufs);
 
-        match r {
-            Ok(n) => {
-                unsafe { buf.advance_mut(n); }
-                Ok(Async::Ready(n))
-            }
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_read_ready(mio::Ready::readable())?;
-                Ok(Async::NotReady)
-            }
-            Err(e) => Err(e),
+        if is_wouldblock(&r) {
+            self.io.clear_read_ready(lw)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(r)
         }
     }
 }
 
 impl<'a> AsyncWrite for &'a TcpStream {
-    fn shutdown(&mut self) -> Poll<(), io::Error> {
-        Ok(().into())
+    fn poll_write(&mut self, lw: &LocalWaker, buf: &[u8]) -> Poll<io::Result<usize>> {
+        (&self.io).poll_write(lw, buf)
     }
 
-    fn write_buf<B: Buf>(&mut self, buf: &mut B) -> Poll<usize, io::Error> {
-        if let Async::NotReady = self.io.poll_write_ready()? {
-            return Ok(Async::NotReady)
+    fn poll_vectored_write(&mut self, lw: &LocalWaker, bufs: &[&IoVec])
+        -> Poll<io::Result<usize>>
+    {
+        ready!(self.poll_write_ready(lw)?);
+
+        let r = self.io.get_ref().write_bufs(bufs);
+
+        if is_wouldblock(&r) {
+            self.io.clear_write_ready(lw)?;
         }
 
-        let r = {
-            // The `IoVec` type can't have a zero-length size, so create a dummy
-            // version from a 1-length slice which we'll overwrite with the
-            // `bytes_vec` method.
-            static DUMMY: &[u8] = &[0];
-            let iovec = <&IoVec>::from(DUMMY);
-            let mut bufs = [iovec; 64];
-            let n = buf.bytes_vec(&mut bufs);
-            self.io.get_ref().write_bufs(&bufs[..n])
-        };
-        match r {
-            Ok(n) => {
-                buf.advance(n);
-                Ok(Async::Ready(n))
-            }
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_write_ready()?;
-                Ok(Async::NotReady)
-            }
-            Err(e) => Err(e),
-        }
+        return Poll::Ready(r)
+    }
+
+    fn poll_flush(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
+        (&self.io).poll_flush(lw)
+    }
+
+    fn poll_close(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
+        (&self.io).poll_close(lw)
     }
 }
 
 impl fmt::Debug for TcpStream {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.io.get_ref().fmt(f)
     }
 }
 
 impl Future for ConnectFuture {
-    type Item = TcpStream;
-    type Error = io::Error;
+    type Output = io::Result<TcpStream>;
 
-    fn poll(&mut self) -> Poll<TcpStream, io::Error> {
-        self.inner.poll()
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<io::Result<TcpStream>> {
+        Pin::new(&mut self.inner).poll(lw)
     }
 }
 
 impl ConnectFutureState {
-    fn poll_inner<F>(&mut self, f: F) -> Poll<TcpStream, io::Error>
-        where F: FnOnce(&mut PollEvented<mio::net::TcpStream>) -> Poll<mio::Ready, io::Error>
+    fn poll_inner<F>(&mut self, f: F) -> Poll<io::Result<TcpStream>>
+        where F: FnOnce(&mut PollEvented<mio::net::TcpStream>) -> Poll<io::Result<mio::Ready>>
     {
         {
             let stream = match *self {
@@ -516,7 +451,7 @@ impl ConnectFutureState {
                         ConnectFutureState::Error(e) => e,
                         _ => panic!(),
                     };
-                    return Err(e)
+                    return Poll::Ready(Err(e))
                 }
                 ConnectFutureState::Empty => panic!("can't poll TCP stream twice"),
             };
@@ -527,28 +462,27 @@ impl ConnectFutureState {
             // actually hit an error or not.
             //
             // If all that succeeded then we ship everything on up.
-            if let Async::NotReady = f(&mut stream.io)? {
-                return Ok(Async::NotReady)
+            if let Poll::Pending = f(&mut stream.io)? {
+                return Poll::Pending
             }
 
-            if let Some(e) = try!(stream.io.get_ref().take_error()) {
-                return Err(e)
+            if let Some(e) = stream.io.get_ref().take_error()? {
+                return Poll::Ready(Err(e))
             }
         }
 
         match mem::replace(self, ConnectFutureState::Empty) {
-            ConnectFutureState::Waiting(stream) => Ok(Async::Ready(stream)),
+            ConnectFutureState::Waiting(stream) => Poll::Ready(Ok(stream)),
             _ => panic!(),
         }
     }
 }
 
 impl Future for ConnectFutureState {
-    type Item = TcpStream;
-    type Error = io::Error;
+    type Output = io::Result<TcpStream>;
 
-    fn poll(&mut self) -> Poll<TcpStream, io::Error> {
-        self.poll_inner(|io| io.poll_write_ready())
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<io::Result<TcpStream>> {
+        self.poll_inner(|io| io.poll_write_ready(lw))
     }
 }
 
@@ -576,4 +510,11 @@ mod sys {
     //         self.io.get_ref().as_raw_handle()
     //     }
     // }
+}
+
+fn is_wouldblock<T>(r: &io::Result<T>) -> bool {
+    match *r {
+        Ok(_) => false,
+        Err(ref e) => e.kind() == io::ErrorKind::WouldBlock,
+    }
 }

@@ -1,13 +1,16 @@
-use super::Incoming;
 use super::TcpStream;
 
 use std::fmt;
 use std::io;
 use std::net::{self, SocketAddr};
+use std::pin::Pin;
 
-use futures::{Poll, Async};
+use futures::{Poll, ready};
+use futures::task::LocalWaker;
+use futures::stream::Stream;
 use mio;
-use tokio_reactor::{Handle, PollEvented};
+use romio_reactor::{Handle, PollEvented};
+
 
 /// An I/O object representing a TCP socket listening for incoming connections.
 ///
@@ -25,15 +28,6 @@ impl TcpListener {
     pub fn bind(addr: &SocketAddr) -> io::Result<TcpListener> {
         let l = mio::net::TcpListener::bind(addr)?;
         Ok(TcpListener::new(l))
-    }
-
-    #[deprecated(since = "0.1.2", note = "use poll_accept instead")]
-    #[doc(hidden)]
-    pub fn accept(&mut self) -> io::Result<(TcpStream, SocketAddr)> {
-        match self.poll_accept()? {
-            Async::Ready(ret) => Ok(ret),
-            Async::NotReady => Err(io::ErrorKind::WouldBlock.into()),
-        }
     }
 
     /// Attempt to accept a connection and create a new connected `TcpStream` if
@@ -54,22 +48,13 @@ impl TcpListener {
     /// # Panics
     ///
     /// This function will panic if called from outside of a task context.
-    pub fn poll_accept(&mut self) -> Poll<(TcpStream, SocketAddr), io::Error> {
-        let (io, addr) = try_ready!(self.poll_accept_std());
+    pub fn poll_accept(&mut self, lw: &LocalWaker) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
+        let (io, addr) = ready!(self.poll_accept_std(lw)?);
 
         let io = mio::net::TcpStream::from_stream(io)?;
         let io = TcpStream::new(io);
 
-        Ok((io, addr).into())
-    }
-
-    #[deprecated(since = "0.1.2", note = "use poll_accept_std instead")]
-    #[doc(hidden)]
-    pub fn accept_std(&mut self) -> io::Result<(net::TcpStream, SocketAddr)> {
-        match self.poll_accept_std()? {
-            Async::Ready(ret) => Ok(ret),
-            Async::NotReady => Err(io::ErrorKind::WouldBlock.into()),
-        }
+        Poll::Ready(Ok((io, addr)))
     }
 
     /// Attempt to accept a connection and create a new connected `TcpStream` if
@@ -91,16 +76,18 @@ impl TcpListener {
     /// # Panics
     ///
     /// This function will panic if called from outside of a task context.
-    pub fn poll_accept_std(&mut self) -> Poll<(net::TcpStream, SocketAddr), io::Error> {
-        try_ready!(self.io.poll_read_ready(mio::Ready::readable()));
+    pub fn poll_accept_std(&mut self, lw: &LocalWaker)
+        -> Poll<io::Result<(net::TcpStream, SocketAddr)>>
+    {
+        ready!(self.io.poll_read_ready(lw)?);
 
         match self.io.get_ref().accept_std() {
-            Ok(pair) => Ok(pair.into()),
+            Ok(pair) => Poll::Ready(Ok(pair)),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_read_ready(mio::Ready::readable())?;
-                Ok(Async::NotReady)
+                self.io.clear_read_ready(lw)?;
+                Poll::Pending
             }
-            Err(e) => Err(e),
+            Err(e) => Poll::Ready(Err(e)),
         }
     }
 
@@ -191,7 +178,7 @@ impl TcpListener {
 }
 
 impl fmt::Debug for TcpListener {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.io.get_ref().fmt(f)
     }
 }
@@ -220,4 +207,27 @@ mod sys {
     //         self.listener.io().as_raw_handle()
     //     }
     // }
+}
+
+/// Stream returned by the `TcpListener::incoming` function representing the
+/// stream of sockets received from a listener.
+#[must_use = "streams do nothing unless polled"]
+#[derive(Debug)]
+pub struct Incoming {
+    inner: TcpListener,
+}
+
+impl Incoming {
+    pub(crate) fn new(listener: TcpListener) -> Incoming {
+        Incoming { inner: listener }
+    }
+}
+
+impl Stream for Incoming {
+    type Item = io::Result<TcpStream>;
+
+    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
+        let (socket, _) = ready!(self.inner.poll_accept(lw)?);
+        Poll::Ready(Some(Ok(socket)))
+    }
 }
