@@ -1,87 +1,41 @@
+cargo-features = ["rename-dependency"]
+
 [package]
 name = "romio"
+edition = "2018"
 
 # When releasing to crates.io:
 # - Update html_root_url.
 # - Update CHANGELOG.md.
 # - Update doc URL.
 # - Create "v0.1.x" git tag.
-version = "0.1.12"
-authors = ["Carl Lerche <me@carllerche.com>", "The Rust Networking Community"]
+version = "0.3.0-alpha"
+authors = ["The Rust Networking Working Group", "Carl Lerche <me@carllerche.com>"]
 license = "MIT"
 readme = "README.md"
-documentation = "https://docs.rs/romio-preview/0.3.0-alpha.9/romio/"
-repository = "https://github.com/withoutboats/romio"
+repository = "https://github.com/rust-lang-nursery/romio"
 description = """
-An event-driven, non-blocking I/O platform for writing asynchronous I/O
-backed applications, built on top of Rust's standard future API.
+Event loop and I/O resources for asynchronous network services using futures
 """
 categories = ["asynchronous", "network-programming"]
-keywords = ["io", "async", "non-blocking", "futures"]
-
-# [workspace]
-# 
-# members = [
-#   "./",
-#   "romio-buf",
-#   "romio-channel",
-#   "romio-codec",
-#   "romio-fs",
-#   "romio-reactor",
-#   "romio-signal",
-#   "romio-threadpool",
-#   "romio-timer",
-#   "romio-tcp",
-#   "romio-tls",
-#   "romio-udp",
-#   "romio-uds",
-# ]
-
-[badges]
-travis-ci = { repository = "withoutboats/romio" }
-appveyor = { repository = "", id = "" }
 
 [dependencies]
-bytes = "0.4"
-num_cpus = "1.8.0"
-romio-codec = { version = "0.1.0", path = "romio-codec" }
-romio-reactor = { version = "0.1.1", path = "romio-reactor" }
-romio-threadpool = { version = "0.1.4", path = "romio-threadpool" }
-romio-tcp = { version = "0.1.0", path = "romio-tcp" }
-romio-udp = { version = "0.1.0", path = "romio-udp" }
-romio-timer = { version = "0.2.6", path = "romio-timer" }
-romio-fs = { version = "0.1.3", path = "romio-fs" }
-
-futures = "0.1.20"
-
-# Needed until `reactor` is removed from `romio`.
+crossbeam-utils = "0.6.0"
+iovec = "0.1"
+lazy_static = "1.0.2"
+log = "0.4.1"
 mio = "0.6.14"
+mio-uds = "0.6.7"
+num_cpus = "1.8.0"
+parking_lot = "0.6.3"
+slab = "0.4.0"
+libc = "0.2.43"
 
-[target.'cfg(unix)'.dependencies]
-romio-uds = { version = "0.2.1", path = "romio-uds" }
+[dependencies.futures]
+version = "0.3.0-alpha.9"
+git = "https://github.com/rust-lang-nursery/futures-rs"
+package = "futures-preview"
 
-[dev-dependencies]
-env_logger = { version = "0.5", default-features = false }
-flate2 = { version = "1", features = ["tokio"] }
-futures-cpupool = "0.1"
-http = "0.1"
-httparse = "1.0"
-libc = "0.2"
-num_cpus = "1.0"
-serde = "1.0"
-serde_derive = "1.0"
-serde_json = "1.0"
-time = "0.1"
-
-[patch.crates-io]
-romio = { path = "." }
-romio-codec = { path = "./romio-codec" }
-romio-fs = { path = "./romio-fs" }
-romio-reactor = { path = "./romio-reactor" }
-romio-signal = { path = "./romio-signal" }
-romio-tcp = { path = "./romio-tcp" }
-romio-threadpool = { path = "./romio-threadpool" }
-romio-timer = { path = "./romio-timer" }
-romio-tls = { path = "./romio-tls" }
-romio-udp = { path = "./romio-udp" }
-romio-uds = { path = "./romio-uds" }
+[dev-dependencies.env_logger]
+version = "0.5"
+default-features = false
