@@ -54,7 +54,7 @@ fn send_and_recv() {
 }
 
 trait SendFn {
-    fn send(&self, &mut UdpSocket, &[u8], &SocketAddr) -> Result<usize, io::Error>;
+    fn send(&self, _: &mut UdpSocket, _: &[u8], _: &SocketAddr) -> Result<usize, io::Error>;
 }
 
 #[derive(Debug, Clone)]
@@ -108,7 +108,7 @@ impl<S: SendFn> Future for SendMessage<S> {
 }
 
 trait RecvFn {
-    fn recv(&self, &mut UdpSocket, &mut [u8], &SocketAddr) -> Result<usize, io::Error>;
+    fn recv(&self, _: &mut UdpSocket, _: &mut [u8], _: &SocketAddr) -> Result<usize, io::Error>;
 }
 
 #[derive(Debug, Clone)]

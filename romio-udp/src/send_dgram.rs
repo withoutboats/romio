@@ -1,9 +1,12 @@
 use super::socket::UdpSocket;
 
 use std::io;
+use std::marker::Unpin;
 use std::net::SocketAddr;
+use std::pin::Pin;
 
-use futures::{Async, Future, Poll};
+use futures::{Future, Poll, ready};
+use futures::task::LocalWaker;
 
 /// A future used to write the entire contents of some data to a UDP socket.
 ///
@@ -41,21 +44,25 @@ fn incomplete_write(reason: &str) -> io::Error {
 impl<T> Future for SendDgram<T>
     where T: AsRef<[u8]>,
 {
-    type Item = (UdpSocket, T);
-    type Error = io::Error;
+    type Output = io::Result<(UdpSocket, T)>;
 
-    fn poll(&mut self) -> Poll<(UdpSocket, T), io::Error> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         {
             let ref mut inner =
                 self.state.as_mut().expect("SendDgram polled after completion");
-            let n = try_ready!(inner.socket.poll_send_to(inner.buffer.as_ref(), &inner.addr));
+            let n = ready!(inner.socket.poll_send_to(lw, inner.buffer.as_ref(), &inner.addr)?);
             if n != inner.buffer.as_ref().len() {
-                return Err(incomplete_write("failed to send entire message \
-                                             in datagram"))
+                return Poll::Ready(Err(incomplete_write("failed to send entire message \
+                                                        in datagram")))
             }
         }
 
         let inner = self.state.take().unwrap();
-        Ok(Async::Ready((inner.socket, inner.buffer)))
+        Poll::Ready(Ok((inner.socket, inner.buffer)))
     }
 }
+
+// The existence of this impl means that we must never project from a pinned reference to
+// `RecvDiagram` to a pinned reference of its `buffer`. Fortunately, we will
+// never need to.
+impl<T> Unpin for SendDgram<T> { }

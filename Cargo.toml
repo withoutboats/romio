@@ -19,23 +19,23 @@ backed applications, built on top of Rust's standard future API.
 categories = ["asynchronous", "network-programming"]
 keywords = ["io", "async", "non-blocking", "futures"]
 
-[workspace]
-
-members = [
-  "./",
-  "romio-buf",
-  "romio-channel",
-  "romio-codec",
-  "romio-fs",
-  "romio-reactor",
-  "romio-signal",
-  "romio-threadpool",
-  "romio-timer",
-  "romio-tcp",
-  "romio-tls",
-  "romio-udp",
-  "romio-uds",
-]
+# [workspace]
+# 
+# members = [
+#   "./",
+#   "romio-buf",
+#   "romio-channel",
+#   "romio-codec",
+#   "romio-fs",
+#   "romio-reactor",
+#   "romio-signal",
+#   "romio-threadpool",
+#   "romio-timer",
+#   "romio-tcp",
+#   "romio-tls",
+#   "romio-udp",
+#   "romio-uds",
+# ]
 
 [badges]
 travis-ci = { repository = "withoutboats/romio" }

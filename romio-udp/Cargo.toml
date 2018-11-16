@@ -1,5 +1,8 @@
+cargo-features = ["rename-dependency"]
+
 [package]
-name = "romio-udp"
+name = "tokio-udp"
+edition = "2018"
 
 # When releasing to crates.io:
 # - Update html_root_url.
@@ -9,22 +12,24 @@ name = "romio-udp"
 version = "0.1.2"
 authors = ["Carl Lerche <me@carllerche.com>"]
 license = "MIT"
-documentation = "https://docs.rs/romio-udp/0.1.2/romio_udp"
-repository = "https://github.com/romio-rs/romio"
-homepage = "https://romio.rs"
+documentation = "https://docs.rs/tokio-udp/0.1.2/tokio_udp"
+repository = "https://github.com/tokio-rs/tokio"
+homepage = "https://tokio.rs"
 description = """
-UDP bindings for romio.
+UDP bindings for tokio.
 """
 categories = ["asynchronous"]
 
 [dependencies]
-romio-codec = { version = "0.1.0", path = "../romio-codec" }
-romio-io = { version = "0.1.7", path = "../romio-io" }
 romio-reactor = { version = "0.1.1", path = "../romio-reactor" }
 bytes = "0.4"
 mio = "0.6.14"
 log = "0.4"
-futures = "0.1.19"
+
+[dependencies.futures]
+version = "0.3.0-alpha.9"
+git = "https://github.com/rust-lang-nursery/futures-rs"
+package = "futures-preview"
 
 [dev-dependencies]
 env_logger = { version = "0.5", default-features = false }

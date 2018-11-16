@@ -14,7 +14,6 @@
 //! [transports]: #
 
 extern crate bytes;
-extern crate tokio_io;
 
 mod bytes_codec;
 mod lines_codec;

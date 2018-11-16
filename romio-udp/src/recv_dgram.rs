@@ -1,9 +1,12 @@
 use super::socket::UdpSocket;
 
 use std::io;
+use std::marker::Unpin;
 use std::net::SocketAddr;
+use std::pin::Pin;
 
-use futures::{Async, Future, Poll};
+use futures::{Future, Poll, ready};
+use futures::task::LocalWaker;
 
 /// A future used to receive a datagram from a UDP socket.
 ///
@@ -35,18 +38,22 @@ impl<T> RecvDgram<T> {
 impl<T> Future for RecvDgram<T>
     where T: AsMut<[u8]>,
 {
-    type Item = (UdpSocket, T, usize, SocketAddr);
-    type Error = io::Error;
+    type Output = io::Result<(UdpSocket, T, usize, SocketAddr)>;
 
-    fn poll(&mut self) -> Poll<Self::Item, io::Error> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let (n, addr) = {
             let ref mut inner =
                 self.state.as_mut().expect("RecvDgram polled after completion");
 
-            try_ready!(inner.socket.poll_recv_from(inner.buffer.as_mut()))
+            ready!(inner.socket.poll_recv_from(lw, inner.buffer.as_mut())?)
         };
 
         let inner = self.state.take().unwrap();
-        Ok(Async::Ready((inner.socket, inner.buffer, n, addr)))
+        Poll::Ready(Ok((inner.socket, inner.buffer, n, addr)))
     }
 }
+
+// The existence of this impl means that we must never project from a pinned reference to
+// `RecvDiagram` to a pinned reference of its `buffer`. Fortunately, we will
+// never need to.
+impl<T> Unpin for RecvDgram<T> { }
