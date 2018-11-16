@@ -1,9 +1,9 @@
-use {Incoming, UnixStream};
+use crate::UnixStream;
 
-use tokio_reactor::{Handle, PollEvented};
+use romio_reactor::{Handle, PollEvented};
 
-use futures::{Async, Poll};
-use mio::Ready;
+use futures::{Poll, Stream, ready};
+use futures::task::LocalWaker;
 use mio_uds;
 
 use std::fmt;
@@ -11,6 +11,7 @@ use std::io;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::os::unix::net::{self, SocketAddr};
 use std::path::Path;
+use std::pin::Pin;
 
 /// A Unix socket which can accept connections from other Unix sockets.
 pub struct UnixListener {
@@ -44,11 +45,6 @@ impl UnixListener {
         self.io.get_ref().local_addr()
     }
 
-    /// Test whether this socket is ready to be read or not.
-    pub fn poll_read_ready(&self, ready: Ready) -> Poll<Ready, io::Error> {
-        self.io.poll_read_ready(ready)
-    }
-
     /// Returns the value of the `SO_ERROR` option.
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
         self.io.get_ref().take_error()
@@ -72,11 +68,11 @@ impl UnixListener {
     /// This function will panic if it is called outside the context of a
     /// future's task. It's recommended to only call this from the
     /// implementation of a `Future::poll`, if necessary.
-    pub fn poll_accept(&self) -> Poll<(UnixStream, SocketAddr), io::Error> {
-        let (io, addr) = try_ready!(self.poll_accept_std());
+    pub fn poll_accept(&self, lw: &LocalWaker) -> Poll<io::Result<(UnixStream, SocketAddr)>> {
+        let (io, addr) = ready!(self.poll_accept_std(lw)?);
 
         let io = mio_uds::UnixStream::from_stream(io)?;
-        Ok((UnixStream::new(io), addr).into())
+        Poll::Ready(Ok((UnixStream::new(io), addr)))
     }
 
     /// Attempt to accept a connection and create a new connected `UnixStream`
@@ -102,24 +98,22 @@ impl UnixListener {
     /// This function will panic if it is called outside the context of a
     /// future's task. It's recommended to only call this from the
     /// implementation of a `Future::poll`, if necessary.
-    pub fn poll_accept_std(&self) -> Poll<(net::UnixStream, SocketAddr), io::Error> {
-        loop {
-            try_ready!(self.io.poll_read_ready(Ready::readable()));
+    pub fn poll_accept_std(&self, lw: &LocalWaker)
+        -> Poll<io::Result<(net::UnixStream, SocketAddr)>>
+    {
+        ready!(self.io.poll_read_ready(lw)?);
 
-            match self.io.get_ref().accept_std() {
-                Ok(None) => {
-                    self.io.clear_read_ready(Ready::readable())?;
-                    return Ok(Async::NotReady);
-                }
-                Ok(Some((sock, addr))) => {
-                    return Ok(Async::Ready((sock, addr)));
-                }
-                Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => {
-                    self.io.clear_read_ready(Ready::readable())?;
-                    return Ok(Async::NotReady);
-                }
-                Err(err) => return Err(err),
+        match self.io.get_ref().accept_std() {
+            Ok(Some((sock, addr))) => Poll::Ready(Ok((sock, addr))),
+            Ok(None) => {
+                self.io.clear_read_ready(lw)?;
+                Poll::Pending
             }
+            Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => {
+                self.io.clear_read_ready(lw)?;
+                Poll::Pending
+            }
+            Err(err) => Poll::Ready(Err(err)),
         }
     }
 
@@ -142,5 +136,26 @@ impl fmt::Debug for UnixListener {
 impl AsRawFd for UnixListener {
     fn as_raw_fd(&self) -> RawFd {
         self.io.get_ref().as_raw_fd()
+    }
+}
+
+/// Stream of listeners
+#[derive(Debug)]
+pub struct Incoming {
+    inner: UnixListener,
+}
+
+impl Incoming {
+    pub(crate) fn new(listener: UnixListener) -> Incoming {
+        Incoming { inner: listener }
+    }
+}
+
+impl Stream for Incoming {
+    type Item = io::Result<UnixStream>;
+
+    fn poll_next(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
+        let (socket, _) = ready!(self.inner.poll_accept(lw)?);
+        Poll::Ready(Some(Ok(socket)))
     }
 }

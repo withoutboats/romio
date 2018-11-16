@@ -19,7 +19,7 @@ pub use self::impl_macos::get_peer_cred;
 pub mod impl_linux {
     use libc::{c_void, getsockopt, socklen_t, SOL_SOCKET, SO_PEERCRED};
     use std::{io, mem};
-    use UnixStream;
+    use crate::UnixStream;
     use std::os::unix::io::AsRawFd;
 
     use libc::ucred;
@@ -89,7 +89,7 @@ pub mod impl_macos {
 #[cfg(not(target_os = "dragonfly"))]
 #[cfg(test)]
 mod test {
-    use UnixStream;
+    use crate::UnixStream;
     use libc::geteuid;
     use libc::getegid;
 

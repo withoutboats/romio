@@ -1,9 +1,12 @@
-use UnixDatagram;
+use crate::UnixDatagram;
 
-use futures::{Async, Future, Poll};
+use futures::{Future, Poll, ready};
+use futures::task::LocalWaker;
 
 use std::io;
+use std::marker::Unpin;
 use std::mem;
+use std::pin::Pin;
 
 /// A future for receiving datagrams from a Unix datagram socket.
 ///
@@ -48,11 +51,9 @@ where
     /// RecvDgram yields a tuple of the underlying socket, the receive buffer, how many bytes were
     /// received, and the address (path) of the peer sending the datagram. If the buffer is too small, the
     /// datagram is truncated.
-    type Item = (UnixDatagram, T, usize, String);
-    /// This future yields io::Error if an error occurred.
-    type Error = io::Error;
+    type Output = io::Result<(UnixDatagram, T, usize, String)>;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let received;
         let peer;
 
@@ -61,7 +62,7 @@ where
             ref mut buf,
         } = self.st
         {
-            let (n, p) = try_ready!(sock.poll_recv_from(buf.as_mut()));
+            let (n, p) = ready!(sock.poll_recv_from(lw, buf.as_mut())?);
             received = n;
 
             peer = p.as_pathname().map_or(String::new(), |p| {
@@ -74,9 +75,13 @@ where
         if let State::Receiving { sock, buf } =
             mem::replace(&mut self.st, State::Empty)
         {
-            Ok(Async::Ready((sock, buf, received, peer)))
+            Poll::Ready(Ok((sock, buf, received, peer)))
         } else {
             panic!()
         }
     }
 }
+
+// The existence of this impl means that we must never project from a pinned reference to
+// `RecvDiagram` to a pinned reference of its `buf` field. Fortunately, we will never need to.
+impl<T> Unpin for RecvDgram<T> { }

@@ -1,10 +1,13 @@
-use UnixDatagram;
+use super::UnixDatagram;
 
-use futures::{Async, Future, Poll};
+use futures::{Future, Poll, ready};
+use futures::task::LocalWaker;
 
 use std::io;
+use std::marker::Unpin;
 use std::mem;
 use std::path::Path;
+use std::pin::Pin;
 
 /// A future for writing a buffer to a Unix datagram socket.
 #[derive(Debug)]
@@ -49,23 +52,21 @@ where
     P: AsRef<Path>,
 {
     /// Returns the underlying socket and the buffer that was sent.
-    type Item = (UnixDatagram, T);
-    /// The error that is returned when sending failed.
-    type Error = io::Error;
+    type Output = io::Result<(UnixDatagram, T)>;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         if let State::Sending {
             ref mut sock,
             ref buf,
             ref addr,
         } = self.st
         {
-            let n = try_ready!(sock.poll_send_to(buf.as_ref(), addr));
+            let n = ready!(sock.poll_send_to(lw, buf.as_ref(), addr)?);
             if n < buf.as_ref().len() {
-                return Err(io::Error::new(
+                return Poll::Ready(Err(io::Error::new(
                     io::ErrorKind::Other,
                     "Couldn't send whole buffer".to_string(),
-                ));
+                )));
             }
         } else {
             panic!()
@@ -73,9 +74,14 @@ where
         if let State::Sending { sock, buf, addr: _ } =
             mem::replace(&mut self.st, State::Empty)
         {
-            Ok(Async::Ready((sock, buf)))
+            Poll::Ready(Ok((sock, buf)))
         } else {
             panic!()
         }
     }
 }
+
+// The existence of this impl means that we must never project from a pinned reference to
+// `RecvDiagram` to a pinned reference of its `buf` or `addr` fields. Fortunately, we will
+// never need to.
+impl<T, P> Unpin for SendDgram<T, P> { }

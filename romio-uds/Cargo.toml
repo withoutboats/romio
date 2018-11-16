@@ -1,5 +1,8 @@
+cargo-features = ["rename-dependency"]
+
 [package]
 name = "romio-uds"
+edition = "2018"
 # When releasing to crates.io:
 # - Update html_root_url.
 # - Update doc url
@@ -18,15 +21,18 @@ categories = ["asynchronous"]
 
 [dependencies]
 bytes = "0.4.8"
-futures = "0.1.21"
 iovec = "0.1.2"
 libc = "0.2.42"
 log = "0.4.2"
 mio = "0.6.14"
 mio-uds = "0.6.5"
 romio-reactor = { version = "0.1.1", path = "../romio-reactor" }
-romio-io = { version = "0.1.6", path = "../romio-io" }
+
+[dependencies.futures]
+version = "0.3.0-alpha.9"
+git = "https://github.com/rust-lang-nursery/futures-rs"
+package = "futures-preview"
 
 [dev-dependencies]
-romio = { version = "0.1.6", path = "../" }
+tokio = { version = "0.1.6" }
 tempfile = "3"

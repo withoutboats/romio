@@ -1,8 +1,10 @@
-use {SendDgram, RecvDgram};
+use super::send_dgram::SendDgram;
+use super::recv_dgram::RecvDgram;
 
-use tokio_reactor::{Handle, PollEvented};
+use romio_reactor::{Handle, PollEvented};
 
-use futures::{Async, Poll};
+use futures::{Poll, ready};
+use futures::task::LocalWaker;
 use mio::Ready;
 use mio_uds;
 
@@ -72,13 +74,13 @@ impl UnixDatagram {
     }
 
     /// Test whether this socket is ready to be read or not.
-    pub fn poll_read_ready(&self, ready: Ready) -> Poll<Ready, io::Error> {
-        self.io.poll_read_ready(ready)
+    pub fn poll_read_ready(&self, lw: &LocalWaker) -> Poll<io::Result<Ready>> {
+        self.io.poll_read_ready(lw)
     }
 
     /// Test whether this socket is ready to be written to or not.
-    pub fn poll_write_ready(&self) -> Poll<Ready, io::Error> {
-        self.io.poll_write_ready()
+    pub fn poll_write_ready(&self, lw: &LocalWaker) -> Poll<io::Result<Ready>> {
+        self.io.poll_write_ready(lw)
     }
 
     /// Returns the local address that this socket is bound to.
@@ -97,31 +99,35 @@ impl UnixDatagram {
     ///
     /// On success, returns the number of bytes read and the address from
     /// whence the data came.
-    pub fn poll_recv_from(&self, buf: &mut [u8]) -> Poll<(usize, SocketAddr), io::Error> {
-        if self.io.poll_read_ready(Ready::readable())?.is_not_ready() {
-            return Ok(Async::NotReady);
-        }
+    pub fn poll_recv_from(&self, lw: &LocalWaker, buf: &mut [u8])
+        -> Poll<io::Result<(usize, SocketAddr)>>
+    {
+        ready!(self.io.poll_read_ready(lw)?);
+
         let r = self.io.get_ref().recv_from(buf);
+
         if is_wouldblock(&r) {
-            self.io.clear_read_ready(Ready::readable())?;
-            return Ok(Async::NotReady);
+            self.io.clear_read_ready(lw)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(r)
         }
-        r.map(Async::Ready)
     }
 
     /// Receives data from the socket.
     ///
     /// On success, returns the number of bytes read.
-    pub fn poll_recv(&self, buf: &mut [u8]) -> Poll<usize, io::Error> {
-        if self.io.poll_read_ready(Ready::readable())?.is_not_ready() {
-            return Ok(Async::NotReady);
-        }
+    pub fn poll_recv(&self, lw: &LocalWaker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
+        ready!(self.io.poll_read_ready(lw)?);
+
         let r = self.io.get_ref().recv(buf);
+
         if is_wouldblock(&r) {
-            self.io.clear_read_ready(Ready::readable())?;
-            return Ok(Async::NotReady);
+            self.io.clear_read_ready(lw)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(r)
         }
-        r.map(Async::Ready)
     }
 
     /// Returns a future for receiving a datagram. See the documentation on RecvDgram for details.
@@ -135,18 +141,20 @@ impl UnixDatagram {
     /// Sends data on the socket to the specified address.
     ///
     /// On success, returns the number of bytes written.
-    pub fn poll_send_to<P>(&self, buf: &[u8], path: P) -> Poll<usize, io::Error>
+    pub fn poll_send_to<P>(&self, lw: &LocalWaker, buf: &[u8], path: P) -> Poll<io::Result<usize>>
     where
         P: AsRef<Path>,
     {
-        if self.io.poll_write_ready()?.is_not_ready() {
-            return Ok(Async::NotReady);
-        }
+        ready!(self.io.poll_write_ready(lw)?);
+
         let r = self.io.get_ref().send_to(buf, path);
+
         if is_wouldblock(&r) {
-            self.io.clear_write_ready()?;
+            self.io.clear_write_ready(lw)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(r)
         }
-        r.map(Async::Ready)
     }
 
     /// Sends data on the socket to the socket's peer.
@@ -155,15 +163,17 @@ impl UnixDatagram {
     /// will return an error if the socket has not already been connected.
     ///
     /// On success, returns the number of bytes written.
-    pub fn poll_send(&self, buf: &[u8]) -> Poll<usize, io::Error> {
-        if self.io.poll_write_ready()?.is_not_ready() {
-            return Ok(Async::NotReady);
-        }
+    pub fn poll_send(&self, lw: &LocalWaker, buf: &[u8]) -> Poll<io::Result<usize>> {
+        ready!(self.io.poll_write_ready(lw)?);
+
         let r = self.io.get_ref().send(buf);
+
         if is_wouldblock(&r) {
-            self.io.clear_write_ready()?;
+            self.io.clear_write_ready(lw)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(r)
         }
-        r.map(Async::Ready)
     }
 
     /// Returns a future sending the data in buf to the socket at path.
