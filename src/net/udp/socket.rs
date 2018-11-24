@@ -214,6 +214,11 @@ impl UdpSocket {
         RecvDgram::new(self, buf)
     }
 
+    /// TODO docs
+    pub fn poll_ready(&self, lw: &LocalWaker, ready: mio::Ready) -> Poll<io::Result<mio::Ready>> {
+        self.io.poll_ready(lw, ready)
+    }
+
     /// Check the UDP socket's read readiness state.
     ///
     /// The mask argument allows specifying what readiness to notify on. This
