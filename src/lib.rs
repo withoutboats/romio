@@ -9,6 +9,7 @@
 
 pub mod net;
 pub mod reactor;
+pub mod timer;
 
 #[cfg(unix)]
 pub mod uds;
