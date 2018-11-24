@@ -233,7 +233,7 @@ impl Registration {
 
                             let waker = unsafe { &*waker };
 
-                            inner.register(direction, waker);
+                            inner.register(waker, direction);
                         }
 
                         ptr = next;
@@ -279,7 +279,7 @@ impl Registration {
     ///
     /// This function will panic if called from outside of a task context.
     pub fn poll_read_ready(&self, waker: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
-        match self.poll_ready(Direction::Read, Some(waker)) {
+        match self.poll_ready(Some(waker), Direction::Read) {
             Ok(Some(v)) => Poll::Ready(Ok(v)),
             Ok(None)    => Poll::Pending,
             Err(e)      => Poll::Ready(Err(e)),
@@ -294,7 +294,7 @@ impl Registration {
     ///
     /// [`poll_read_ready`]: #method.poll_read_ready
     pub fn take_read_ready(&self) -> io::Result<Option<mio::Ready>> {
-        self.poll_ready(Direction::Read, None)
+        self.poll_ready(None, Direction::Read)
 
     }
 
@@ -331,7 +331,7 @@ impl Registration {
     ///
     /// This function will panic if called from outside of a task context.
     pub fn poll_write_ready(&self, waker: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
-        match self.poll_ready(Direction::Write, Some(waker)) {
+        match self.poll_ready(Some(waker), Direction::Write) {
             Ok(Some(v)) => Poll::Ready(Ok(v)),
             Ok(None)    => Poll::Pending,
             Err(e)      => Poll::Ready(Err(e)),
@@ -346,10 +346,10 @@ impl Registration {
     ///
     /// [`poll_write_ready`]: #method.poll_write_ready
     pub fn take_write_ready(&self) -> io::Result<Option<mio::Ready>> {
-        self.poll_ready(Direction::Write, None)
+        self.poll_ready(None, Direction::Write)
     }
 
-    fn poll_ready(&self, direction: Direction, waker: Option<&LocalWaker>)
+    fn poll_ready(&self, waker: Option<&LocalWaker>, direction: Direction)
         -> io::Result<Option<mio::Ready>>
     {
         let mut state = self.state.load(SeqCst);
@@ -365,7 +365,7 @@ impl Registration {
                 }
                 READY => {
                     let inner = unsafe { (*self.inner.get()).as_ref().unwrap() };
-                    return inner.poll_ready(direction, waker);
+                    return inner.poll_ready(waker, direction);
                 }
                 LOCKED => {
                     if waker.is_none() {
@@ -445,7 +445,7 @@ impl Inner {
         (inner, res)
     }
 
-    fn register(&self, direction: Direction, waker: &LocalWaker) {
+    fn register(&self, waker: &LocalWaker, direction: Direction) {
         if self.token == ERROR {
             waker.wake();
             return;
@@ -459,7 +459,7 @@ impl Inner {
             }
         };
 
-        inner.register(self.token, direction, waker);
+        inner.register(waker, self.token, direction);
     }
 
     fn deregister<E: Evented>(&self, io: &E) -> io::Result<()> {
@@ -475,7 +475,7 @@ impl Inner {
         inner.deregister_source(io)
     }
 
-    fn poll_ready(&self, direction: Direction, waker: Option<&LocalWaker>)
+    fn poll_ready(&self, waker: Option<&LocalWaker>, direction: Direction)
         -> io::Result<Option<mio::Ready>>
     {
         if self.token == ERROR {

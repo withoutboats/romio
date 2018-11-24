@@ -622,20 +622,20 @@ impl Inner {
     }
 
     /// Registers interest in the I/O resource associated with `token`.
-    fn register(&self, token: usize, dir: Direction, t: &LocalWaker) {
+    fn register(&self, lw: &LocalWaker, token: usize, dir: Direction) {
         debug!("scheduling direction for: {}", token);
         let io_dispatch = self.io_dispatch.read();
         let sched = io_dispatch.get(token).unwrap();
 
-        let (task, ready) = match dir {
+        let (waker, ready) = match dir {
             Direction::Read => (&sched.reader, !mio::Ready::writable()),
             Direction::Write => (&sched.writer, mio::Ready::writable()),
         };
 
-        task.register(t);
+        waker.register(lw);
 
         if sched.readiness.load(SeqCst) & ready.as_usize() != 0 {
-            task.wake();
+            waker.wake();
         }
     }
 }
