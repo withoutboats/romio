@@ -197,6 +197,44 @@ where E: Evented
         Ok(io)
     }
 
+    /// TODO Docs for poll_ready
+    pub fn poll_ready(&self, waker: &LocalWaker, ready: mio::Ready) -> Poll<io::Result<mio::Ready>>
+    {
+        if ready.is_empty() {
+            return Poll::Ready(Ok(ready))
+        }
+
+        let mut ret = mio::Ready::empty();
+
+        if ready.is_writable() {
+            if let Poll::Ready(v) = self.poll_write_ready(waker)? {
+                ret |= v & ready;
+            }
+        }
+
+        let ready = ready - mio::Ready::writable();
+
+        if !ready.is_empty() {
+            if let Poll::Ready(v) = self.poll_read_ready(waker)? {
+                ret |= v & ready;
+            }
+        }
+
+        if ret.is_empty() {
+            if ready.is_writable() {
+                self.clear_write_ready(waker)?;
+            }
+
+            if ready.is_readable() {
+                self.clear_read_ready(waker)?;
+            }
+
+            Poll::Pending
+        } else {
+            Poll::Ready(Ok(ret))
+        }
+    }
+
     /// Check the I/O resource's read readiness state.
     ///
     /// The mask argument allows specifying what readiness to notify on. This
