@@ -157,7 +157,7 @@ where E: Evented
     }
 
     /// TODO Docs for poll_ready
-    pub fn poll_ready(&self, waker: &LocalWaker, ready: mio::Ready) -> Poll<io::Result<mio::Ready>>
+    pub fn poll_ready(&self, lw: &LocalWaker, ready: mio::Ready) -> Poll<io::Result<mio::Ready>>
     {
         if ready.is_empty() {
             return Poll::Ready(Ok(ready))
@@ -166,7 +166,7 @@ where E: Evented
         let mut ret = mio::Ready::empty();
 
         if ready.is_writable() {
-            if let Poll::Ready(v) = self.poll_write_ready(waker)? {
+            if let Poll::Ready(v) = self.poll_write_ready(lw)? {
                 ret |= v & ready;
             }
         }
@@ -174,18 +174,18 @@ where E: Evented
         let ready = ready - mio::Ready::writable();
 
         if !ready.is_empty() {
-            if let Poll::Ready(v) = self.poll_read_ready(waker)? {
+            if let Poll::Ready(v) = self.poll_read_ready(lw)? {
                 ret |= v & ready;
             }
         }
 
         if ret.is_empty() {
             if ready.is_writable() {
-                self.clear_write_ready(waker)?;
+                self.clear_write_ready(lw)?;
             }
 
             if ready.is_readable() {
-                self.clear_read_ready(waker)?;
+                self.clear_read_ready(lw)?;
             }
 
             Poll::Pending
@@ -208,7 +208,7 @@ where E: Evented
     /// cleared by calling [`clear_read_ready`].
     ///
     /// [`clear_read_ready`]: #method.clear_read_ready
-    pub fn poll_read_ready(&self, waker: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
+    pub fn poll_read_ready(&self, lw: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
         self.register()?;
 
         // Load cached & encoded readiness.
@@ -223,7 +223,7 @@ where E: Evented
             // stream. This happens in a loop to ensure that the stream gets
             // drained.
             loop {
-                let ready = ready!(self.inner.registration.poll_read_ready(waker)?);
+                let ready = ready!(self.inner.registration.poll_read_ready(lw)?);
                 cached |= ready.as_usize();
 
                 // Update the cache store
@@ -255,12 +255,12 @@ where E: Evented
     ///
     /// The `mask` argument specifies the readiness bits to clear. This may not
     /// include `writable` or `hup`.
-    pub fn clear_read_ready(&self, waker: &LocalWaker) -> io::Result<()> {
+    pub fn clear_read_ready(&self, lw: &LocalWaker) -> io::Result<()> {
         self.inner.read_readiness.fetch_and(!mio::Ready::readable().as_usize(), Relaxed);
 
-        if self.poll_read_ready(waker)?.is_ready() {
+        if self.poll_read_ready(lw)?.is_ready() {
             // Notify the current task
-            waker.wake();
+            lw.wake();
         }
 
         Ok(())
@@ -285,7 +285,7 @@ where E: Evented
     ///
     /// * `ready` contains bits besides `writable` and `hup`.
     /// * called from outside of a task context.
-    pub fn poll_write_ready(&self, waker: &LocalWaker) -> Poll<Result<mio::Ready, io::Error>> {
+    pub fn poll_write_ready(&self, lw: &LocalWaker) -> Poll<Result<mio::Ready, io::Error>> {
         self.register()?;
 
         // Load cached & encoded readiness.
@@ -300,7 +300,7 @@ where E: Evented
             // stream. This happens in a loop to ensure that the stream gets
             // drained.
             loop {
-                let ready = ready!(self.inner.registration.poll_write_ready(waker)?);
+                let ready = ready!(self.inner.registration.poll_write_ready(lw)?);
                 cached |= ready.as_usize();
 
                 // Update the cache store
@@ -336,12 +336,12 @@ where E: Evented
     /// # Panics
     ///
     /// This function will panic if called from outside of a task context.
-    pub fn clear_write_ready(&self, waker: &LocalWaker) -> io::Result<()> {
+    pub fn clear_write_ready(&self, lw: &LocalWaker) -> io::Result<()> {
         self.inner.write_readiness.fetch_and(!mio::Ready::writable().as_usize(), Relaxed);
 
-        if self.poll_write_ready(waker)?.is_ready() {
+        if self.poll_write_ready(lw)?.is_ready() {
             // Notify the current task
-            waker.wake();
+            lw.wake();
         }
 
         Ok(())
