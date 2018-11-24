@@ -103,47 +103,6 @@ struct Inner {
 
 // ===== impl PollEvented =====
 
-macro_rules! poll_ready {
-    ($me:expr, $mask:expr, $cache:ident, $take:ident, $poll:expr) => {{
-        $me.register()?;
-
-        // Load cached & encoded readiness.
-        let mut cached = $me.inner.$cache.load(Relaxed);
-        let mask = $mask | super::platform::hup();
-
-        // See if the current readiness matches any bits.
-        let mut ret = mio::Ready::from_usize(cached) & $mask;
-
-        if ret.is_empty() {
-            // Readiness does not match, consume the registration's readiness
-            // stream. This happens in a loop to ensure that the stream gets
-            // drained.
-            loop {
-                let ready = ready!($poll?);
-                cached |= ready.as_usize();
-
-                // Update the cache store
-                $me.inner.$cache.store(cached, Relaxed);
-
-                ret |= ready & mask;
-
-                if !ret.is_empty() {
-                    return Poll::Ready(Ok(ret))
-                }
-            }
-        } else {
-            // Check what's new with the registration stream. This will not
-            // request to be notified
-            if let Some(ready) = $me.inner.registration.$take()? {
-                cached |= ready.as_usize();
-                $me.inner.$cache.store(cached, Relaxed);
-            }
-
-            Poll::Ready(Ok(mio::Ready::from_usize(cached)))
-        }
-    }}
-}
-
 impl<E> PollEvented<E>
 where E: Evented
 {
@@ -250,8 +209,42 @@ where E: Evented
     ///
     /// [`clear_read_ready`]: #method.clear_read_ready
     pub fn poll_read_ready(&self, waker: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
-        poll_ready!(self, mio::Ready::readable(), read_readiness, take_read_ready,
-                    self.inner.registration.poll_read_ready(waker))
+        self.register()?;
+
+        // Load cached & encoded readiness.
+        let mut cached = self.inner.read_readiness.load(Relaxed);
+        let mask = mio::Ready::readable() | super::platform::hup();
+
+        // See if the current readiness matches any bits.
+        let mut ret = mio::Ready::from_usize(cached) & mio::Ready::readable();
+
+        if ret.is_empty() {
+            // Readiness does not match, consume the registration's readiness
+            // stream. This happens in a loop to ensure that the stream gets
+            // drained.
+            loop {
+                let ready = ready!(self.inner.registration.poll_read_ready(waker)?);
+                cached |= ready.as_usize();
+
+                // Update the cache store
+                self.inner.read_readiness.store(cached, Relaxed);
+
+                ret |= ready & mask;
+
+                if !ret.is_empty() {
+                    return Poll::Ready(Ok(ret))
+                }
+            }
+        } else {
+            // Check what's new with the registration stream. This will not
+            // request to be notified
+            if let Some(ready) = self.inner.registration.take_read_ready()? {
+                cached |= ready.as_usize();
+                self.inner.read_readiness.store(cached, Relaxed);
+            }
+
+            Poll::Ready(Ok(mio::Ready::from_usize(cached)))
+        }
     }
 
     /// Clears the I/O resource's read readiness state and registers the current
@@ -293,13 +286,42 @@ where E: Evented
     /// * `ready` contains bits besides `writable` and `hup`.
     /// * called from outside of a task context.
     pub fn poll_write_ready(&self, waker: &LocalWaker) -> Poll<Result<mio::Ready, io::Error>> {
-        poll_ready!(
-            self,
-            mio::Ready::writable(),
-            write_readiness,
-            take_write_ready,
-            self.inner.registration.poll_write_ready(waker)
-        )
+        self.register()?;
+
+        // Load cached & encoded readiness.
+        let mut cached = self.inner.write_readiness.load(Relaxed);
+        let mask = mio::Ready::writable() | super::platform::hup();
+
+        // See if the current readiness matches any bits.
+        let mut ret = mio::Ready::from_usize(cached) & mio::Ready::readable();
+
+        if ret.is_empty() {
+            // Readiness does not match, consume the registration's readiness
+            // stream. This happens in a loop to ensure that the stream gets
+            // drained.
+            loop {
+                let ready = ready!(self.inner.registration.poll_write_ready(waker)?);
+                cached |= ready.as_usize();
+
+                // Update the cache store
+                self.inner.write_readiness.store(cached, Relaxed);
+
+                ret |= ready & mask;
+
+                if !ret.is_empty() {
+                    return Poll::Ready(Ok(ret))
+                }
+            }
+        } else {
+            // Check what's new with the registration stream. This will not
+            // request to be notified
+            if let Some(ready) = self.inner.registration.take_write_ready()? {
+                cached |= ready.as_usize();
+                self.inner.write_readiness.store(cached, Relaxed);
+            }
+
+            Poll::Ready(Ok(mio::Ready::from_usize(cached)))
+        }
     }
 
     /// Resets the I/O resource's write readiness state and registers the current
