@@ -12,15 +12,22 @@ pub struct UCred {
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub use self::impl_linux::get_peer_cred;
 
-#[cfg(any(target_os = "dragonfly", target_os = "macos", target_os = "ios", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
+#[cfg(any(
+    target_os = "dragonfly",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 pub use self::impl_macos::get_peer_cred;
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub mod impl_linux {
-    use libc::{c_void, getsockopt, socklen_t, SOL_SOCKET, SO_PEERCRED};
-    use std::{io, mem};
     use crate::uds::UnixStream;
+    use libc::{c_void, getsockopt, socklen_t, SOL_SOCKET, SO_PEERCRED};
     use std::os::unix::io::AsRawFd;
+    use std::{io, mem};
 
     use libc::ucred;
 
@@ -61,12 +68,19 @@ pub mod impl_linux {
     }
 }
 
-#[cfg(any(target_os = "dragonfly", target_os = "macos", target_os = "ios", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
+#[cfg(any(
+    target_os = "dragonfly",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 pub mod impl_macos {
-    use libc::getpeereid;
-    use std::{io, mem};
     use crate::uds::UnixStream;
+    use libc::getpeereid;
     use std::os::unix::io::AsRawFd;
+    use std::{io, mem};
 
     pub fn get_peer_cred(sock: &UnixStream) -> io::Result<super::UCred> {
         unsafe {
@@ -90,12 +104,18 @@ pub mod impl_macos {
 #[cfg(test)]
 mod test {
     use crate::uds::UnixStream;
-    use libc::geteuid;
     use libc::getegid;
+    use libc::geteuid;
 
     #[test]
-    #[cfg_attr(target_os = "freebsd", ignore = "Requires FreeBSD 12.0 or later. https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=176419")]
-    #[cfg_attr(target_os = "netbsd", ignore = "NetBSD does not support getpeereid() for sockets created by socketpair()")]
+    #[cfg_attr(
+        target_os = "freebsd",
+        ignore = "Requires FreeBSD 12.0 or later. https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=176419"
+    )]
+    #[cfg_attr(
+        target_os = "netbsd",
+        ignore = "NetBSD does not support getpeereid() for sockets created by socketpair()"
+    )]
     fn test_socket_pair() {
         let (a, b) = UnixStream::pair().unwrap();
         let cred_a = a.peer_cred().unwrap();
