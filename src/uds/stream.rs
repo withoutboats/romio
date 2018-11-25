@@ -90,11 +90,6 @@ impl UnixStream {
         UnixStream { io }
     }
 
-    /// TODO docs
-    pub fn poll_ready(&self, lw: &LocalWaker, ready: Ready) -> Poll<io::Result<Ready>> {
-        self.io.poll_ready(lw, ready)
-    }
-
     /// Test whether this socket is ready to be read or not.
     pub fn poll_read_ready(&self, lw: &LocalWaker) -> Poll<io::Result<Ready>> {
         self.io.poll_read_ready(lw)
