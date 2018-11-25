@@ -65,7 +65,7 @@ pub mod impl_linux {
 pub mod impl_macos {
     use libc::getpeereid;
     use std::{io, mem};
-    use UnixStream;
+    use crate::uds::UnixStream;
     use std::os::unix::io::AsRawFd;
 
     pub fn get_peer_cred(sock: &UnixStream) -> io::Result<super::UCred> {
