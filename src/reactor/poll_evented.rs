@@ -103,47 +103,6 @@ struct Inner {
 
 // ===== impl PollEvented =====
 
-macro_rules! poll_ready {
-    ($me:expr, $mask:expr, $cache:ident, $take:ident, $poll:expr) => {{
-        $me.register()?;
-
-        // Load cached & encoded readiness.
-        let mut cached = $me.inner.$cache.load(Relaxed);
-        let mask = $mask | super::platform::hup();
-
-        // See if the current readiness matches any bits.
-        let mut ret = mio::Ready::from_usize(cached) & $mask;
-
-        if ret.is_empty() {
-            // Readiness does not match, consume the registration's readiness
-            // stream. This happens in a loop to ensure that the stream gets
-            // drained.
-            loop {
-                let ready = ready!($poll?);
-                cached |= ready.as_usize();
-
-                // Update the cache store
-                $me.inner.$cache.store(cached, Relaxed);
-
-                ret |= ready & mask;
-
-                if !ret.is_empty() {
-                    return Poll::Ready(Ok(ret))
-                }
-            }
-        } else {
-            // Check what's new with the registration stream. This will not
-            // request to be notified
-            if let Some(ready) = $me.inner.registration.$take()? {
-                cached |= ready.as_usize();
-                $me.inner.$cache.store(cached, Relaxed);
-            }
-
-            Poll::Ready(Ok(mio::Ready::from_usize(cached)))
-        }
-    }}
-}
-
 impl<E> PollEvented<E>
 where E: Evented
 {
@@ -211,9 +170,43 @@ where E: Evented
     /// cleared by calling [`clear_read_ready`].
     ///
     /// [`clear_read_ready`]: #method.clear_read_ready
-    pub fn poll_read_ready(&self, waker: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
-        poll_ready!(self, mio::Ready::readable(), read_readiness, take_read_ready,
-                    self.inner.registration.poll_read_ready(waker))
+    pub fn poll_read_ready(&self, lw: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
+        self.register()?;
+
+        // Load cached & encoded readiness.
+        let mut cached = self.inner.read_readiness.load(Relaxed);
+        let mask = mio::Ready::readable() | super::platform::hup();
+
+        // See if the current readiness matches any bits.
+        let mut ret = mio::Ready::from_usize(cached) & mio::Ready::readable();
+
+        if ret.is_empty() {
+            // Readiness does not match, consume the registration's readiness
+            // stream. This happens in a loop to ensure that the stream gets
+            // drained.
+            loop {
+                let ready = ready!(self.inner.registration.poll_read_ready(lw)?);
+                cached |= ready.as_usize();
+
+                // Update the cache store
+                self.inner.read_readiness.store(cached, Relaxed);
+
+                ret |= ready & mask;
+
+                if !ret.is_empty() {
+                    return Poll::Ready(Ok(ret))
+                }
+            }
+        } else {
+            // Check what's new with the registration stream. This will not
+            // request to be notified
+            if let Some(ready) = self.inner.registration.take_read_ready()? {
+                cached |= ready.as_usize();
+                self.inner.read_readiness.store(cached, Relaxed);
+            }
+
+            Poll::Ready(Ok(mio::Ready::from_usize(cached)))
+        }
     }
 
     /// Clears the I/O resource's read readiness state and registers the current
@@ -224,12 +217,12 @@ where E: Evented
     ///
     /// The `mask` argument specifies the readiness bits to clear. This may not
     /// include `writable` or `hup`.
-    pub fn clear_read_ready(&self, waker: &LocalWaker) -> io::Result<()> {
+    pub fn clear_read_ready(&self, lw: &LocalWaker) -> io::Result<()> {
         self.inner.read_readiness.fetch_and(!mio::Ready::readable().as_usize(), Relaxed);
 
-        if self.poll_read_ready(waker)?.is_ready() {
+        if self.poll_read_ready(lw)?.is_ready() {
             // Notify the current task
-            waker.wake();
+            lw.wake();
         }
 
         Ok(())
@@ -254,14 +247,43 @@ where E: Evented
     ///
     /// * `ready` contains bits besides `writable` and `hup`.
     /// * called from outside of a task context.
-    pub fn poll_write_ready(&self, waker: &LocalWaker) -> Poll<Result<mio::Ready, io::Error>> {
-        poll_ready!(
-            self,
-            mio::Ready::writable(),
-            write_readiness,
-            take_write_ready,
-            self.inner.registration.poll_write_ready(waker)
-        )
+    pub fn poll_write_ready(&self, lw: &LocalWaker) -> Poll<Result<mio::Ready, io::Error>> {
+        self.register()?;
+
+        // Load cached & encoded readiness.
+        let mut cached = self.inner.write_readiness.load(Relaxed);
+        let mask = mio::Ready::writable() | super::platform::hup();
+
+        // See if the current readiness matches any bits.
+        let mut ret = mio::Ready::from_usize(cached) & mio::Ready::readable();
+
+        if ret.is_empty() {
+            // Readiness does not match, consume the registration's readiness
+            // stream. This happens in a loop to ensure that the stream gets
+            // drained.
+            loop {
+                let ready = ready!(self.inner.registration.poll_write_ready(lw)?);
+                cached |= ready.as_usize();
+
+                // Update the cache store
+                self.inner.write_readiness.store(cached, Relaxed);
+
+                ret |= ready & mask;
+
+                if !ret.is_empty() {
+                    return Poll::Ready(Ok(ret))
+                }
+            }
+        } else {
+            // Check what's new with the registration stream. This will not
+            // request to be notified
+            if let Some(ready) = self.inner.registration.take_write_ready()? {
+                cached |= ready.as_usize();
+                self.inner.write_readiness.store(cached, Relaxed);
+            }
+
+            Poll::Ready(Ok(mio::Ready::from_usize(cached)))
+        }
     }
 
     /// Resets the I/O resource's write readiness state and registers the current
@@ -276,12 +298,12 @@ where E: Evented
     /// # Panics
     ///
     /// This function will panic if called from outside of a task context.
-    pub fn clear_write_ready(&self, waker: &LocalWaker) -> io::Result<()> {
+    pub fn clear_write_ready(&self, lw: &LocalWaker) -> io::Result<()> {
         self.inner.write_readiness.fetch_and(!mio::Ready::writable().as_usize(), Relaxed);
 
-        if self.poll_write_ready(waker)?.is_ready() {
+        if self.poll_write_ready(lw)?.is_ready() {
             // Notify the current task
-            waker.wake();
+            lw.wake();
         }
 
         Ok(())
