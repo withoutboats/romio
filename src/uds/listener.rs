@@ -1,6 +1,6 @@
 use super::UnixStream;
 
-use crate::reactor::{Handle, PollEvented};
+use crate::reactor::PollEvented;
 
 use futures::{Poll, Stream, ready};
 use futures::task::LocalWaker;
@@ -29,17 +29,6 @@ impl UnixListener {
         Ok(UnixListener { io })
     }
 
-    /// Consumes a `UnixListener` in the standard library and returns a
-    /// nonblocking `UnixListener` from this crate.
-    ///
-    /// The returned listener will be associated with the given event loop
-    /// specified by `handle` and is ready to perform I/O.
-    pub fn from_std(listener: net::UnixListener, handle: &Handle) -> io::Result<UnixListener> {
-        let listener = mio_uds::UnixListener::from_listener(listener)?;
-        let io = PollEvented::new_with_handle(listener, handle)?;
-        Ok(UnixListener { io })
-    }
-
     /// Returns the local socket address of this listener.
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().local_addr()
@@ -50,55 +39,23 @@ impl UnixListener {
         self.io.get_ref().take_error()
     }
 
-    /// Attempt to accept a connection and create a new connected `UnixStream`
-    /// if successful.
+    /// Consumes this listener, returning a stream of the sockets this listener
+    /// accepts.
     ///
-    /// This function will attempt an accept operation, but will not block
-    /// waiting for it to complete. If the operation would block then a "would
-    /// block" error is returned. Additionally, if this method would block, it
-    /// registers the current task to receive a notification when it would
-    /// otherwise not block.
-    ///
-    /// Note that typically for simple usage it's easier to treat incoming
-    /// connections as a `Stream` of `UnixStream`s with the `incoming` method
-    /// below.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if it is called outside the context of a
-    /// future's task. It's recommended to only call this from the
-    /// implementation of a `Future::poll`, if necessary.
-    pub fn poll_accept(&self, lw: &LocalWaker) -> Poll<io::Result<(UnixStream, SocketAddr)>> {
+    /// This method returns an implementation of the `Stream` trait which
+    /// resolves to the sockets the are accepted on this listener.
+    pub fn incoming(self) -> Incoming {
+        Incoming::new(self)
+    }
+
+    fn poll_accept(&self, lw: &LocalWaker) -> Poll<io::Result<(UnixStream, SocketAddr)>> {
         let (io, addr) = ready!(self.poll_accept_std(lw)?);
 
         let io = mio_uds::UnixStream::from_stream(io)?;
         Poll::Ready(Ok((UnixStream::new(io), addr)))
     }
 
-    /// Attempt to accept a connection and create a new connected `UnixStream`
-    /// if successful.
-    ///
-    /// This function is the same as `poll_accept` above except that it returns a
-    /// `mio_uds::UnixStream` instead of a `tokio_udp::UnixStream`. This in turn
-    /// can then allow for the stream to be associated with a different reactor
-    /// than the one this `UnixListener` is associated with.
-    ///
-    /// This function will attempt an accept operation, but will not block
-    /// waiting for it to complete. If the operation would block then a "would
-    /// block" error is returned. Additionally, if this method would block, it
-    /// registers the current task to receive a notification when it would
-    /// otherwise not block.
-    ///
-    /// Note that typically for simple usage it's easier to treat incoming
-    /// connections as a `Stream` of `UnixStream`s with the `incoming` method
-    /// below.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if it is called outside the context of a
-    /// future's task. It's recommended to only call this from the
-    /// implementation of a `Future::poll`, if necessary.
-    pub fn poll_accept_std(&self, lw: &LocalWaker)
+    fn poll_accept_std(&self, lw: &LocalWaker)
         -> Poll<io::Result<(net::UnixStream, SocketAddr)>>
     {
         ready!(self.io.poll_read_ready(lw)?);
@@ -115,15 +72,6 @@ impl UnixListener {
             }
             Err(err) => Poll::Ready(Err(err)),
         }
-    }
-
-    /// Consumes this listener, returning a stream of the sockets this listener
-    /// accepts.
-    ///
-    /// This method returns an implementation of the `Stream` trait which
-    /// resolves to the sockets the are accepted on this listener.
-    pub fn incoming(self) -> Incoming {
-        Incoming::new(self)
     }
 }
 
