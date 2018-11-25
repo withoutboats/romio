@@ -1,6 +1,4 @@
-//! Unix Domain Sockets for Tokio.
-//!
-//! This crate provides APIs for using Unix Domain Sockets with Tokio.
+//! Async UDS (Unix Domain Sockets) bindings.
 
 mod datagram;
 mod listener;
@@ -8,6 +6,6 @@ mod stream;
 mod ucred;
 
 pub use self::datagram::UnixDatagram;
-pub use self::listener::{UnixListener, Incoming};
-pub use self::stream::{UnixStream, ConnectFuture};
+pub use self::listener::{Incoming, UnixListener};
+pub use self::stream::{ConnectFuture, UnixStream};
 pub use self::ucred::UCred;
