@@ -8,7 +8,8 @@
 #![cfg_attr(test, deny(warnings))]
 
 pub mod net;
-pub mod reactor;
 
 #[cfg(unix)]
 pub mod uds;
+
+mod reactor;

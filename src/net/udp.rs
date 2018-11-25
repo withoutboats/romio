@@ -1,14 +1,30 @@
-use super::{SendDgram, RecvDgram};
+//! UDP bindings for `tokio`.
+//!
+//! This module contains the UDP networking types, similar to the standard
+//! library, which can be used to implement networking protocols.
+//!
+//! The main struct for UDP is the [`UdpSocket`], which represents a UDP socket.
+//! Reading and writing to it can be done using futures, which return the
+//! [`RecvDgram`] and [`SendDgram`] structs respectively.
+//!
+//! For convenience it's also possible to convert raw datagrams into higher-level
+//! frames.
+//!
+//! [`UdpSocket`]: struct.UdpSocket.html
+//! [`RecvDgram`]: struct.RecvDgram.html
+//! [`SendDgram`]: struct.SendDgram.html
+//! [`UdpFramed`]: struct.UdpFramed.html
+//! [`framed`]: struct.UdpSocket.html#method.framed
 
 use std::io;
-use std::net::{self, SocketAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{SocketAddr, Ipv4Addr, Ipv6Addr};
 use std::fmt;
 
 use futures::{Poll, ready};
 use futures::task::LocalWaker;
 use mio;
 
-use crate::reactor::{Handle, PollEvented};
+use crate::reactor::PollEvented;
 
 /// An I/O object representing a UDP socket.
 pub struct UdpSocket {
@@ -28,101 +44,9 @@ impl UdpSocket {
         UdpSocket { io: io }
     }
 
-    /// Creates a new `UdpSocket` from the previously bound socket provided.
-    ///
-    /// The socket given will be registered with the event loop that `handle`
-    /// is associated with. This function requires that `socket` has previously
-    /// been bound to an address to work correctly.
-    ///
-    /// This can be used in conjunction with net2's `UdpBuilder` interface to
-    /// configure a socket before it's handed off, such as setting options like
-    /// `reuse_address` or binding to multiple addresses.
-    ///
-    /// Use `Handle::default()` to lazily bind to an event loop, just like `bind` does.
-    pub fn from_std(socket: net::UdpSocket,
-                    handle: &Handle) -> io::Result<UdpSocket> {
-        let io = mio::net::UdpSocket::from_socket(socket)?;
-        let io = PollEvented::new_with_handle(io, handle)?;
-        Ok(UdpSocket { io })
-    }
-
     /// Returns the local address that this socket is bound to.
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().local_addr()
-    }
-
-    /// Connects the UDP socket setting the default destination for send() and
-    /// limiting packets that are read via recv from the address specified in
-    /// `addr`.
-    pub fn connect(&self, addr: &SocketAddr) -> io::Result<()> {
-        self.io.get_ref().connect(*addr)
-    }
-
-    /// Sends data on the socket to the remote address to which it is connected.
-    ///
-    /// The [`connect`] method will connect this socket to a remote address. This
-    /// method will fail if the socket is not connected.
-    ///
-    /// [`connect`]: #method.connect
-    ///
-    /// # Return
-    ///
-    /// On success, returns `Ok(Poll::Ready(num_bytes_written))`.
-    ///
-    /// If the socket is not ready for writing, the method returns
-    /// `Ok(Poll::Pending)` and arranges for the current task to receive a
-    /// notification when the socket becomes writable.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if called from outside of a task context.
-    pub fn poll_send(&mut self, lw: &LocalWaker, buf: &[u8]) -> Poll<io::Result<usize>> {
-        ready!(self.io.poll_write_ready(lw)?);
-
-        match self.io.get_ref().send(buf) {
-            Ok(n) => Poll::Ready(Ok(n)),
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_write_ready(lw)?;
-                Poll::Pending
-            }
-            Err(e) => Poll::Ready(Err(e)),
-        }
-    }
-
-    /// Receives a single datagram message on the socket from the remote address to
-    /// which it is connected. On success, returns the number of bytes read.
-    ///
-    /// The function must be called with valid byte array `buf` of sufficient size to
-    /// hold the message bytes. If a message is too long to fit in the supplied buffer,
-    /// excess bytes may be discarded.
-    ///
-    /// The [`connect`] method will connect this socket to a remote address. This
-    /// method will fail if the socket is not connected.
-    ///
-    /// [`connect`]: #method.connect
-    ///
-    /// # Return
-    ///
-    /// On success, returns `Ok(Poll::Ready(num_bytes_read))`.
-    ///
-    /// If no data is available for reading, the method returns
-    /// `Ok(Poll::Pending)` and arranges for the current task to receive a
-    /// notification when the socket becomes receivable or is closed.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if called from outside of a task context.
-    pub fn poll_recv(&mut self, lw: &LocalWaker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
-        ready!(self.io.poll_read_ready(lw)?);
-
-        match self.io.get_ref().recv(buf) {
-            Ok(n) => Poll::Ready(Ok(n)),
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_read_ready(lw)?;
-                Poll::Pending
-            }
-            Err(e) => Poll::Ready(Err(e)),
-        }
     }
 
     /// Sends data on the socket to the given address. On success, returns the
@@ -155,26 +79,6 @@ impl UdpSocket {
         }
     }
 
-    /// Creates a future that will write the entire contents of the buffer
-    /// `buf` provided as a datagram to this socket.
-    ///
-    /// The returned future will return after data has been written to the
-    /// outbound socket. The future will resolve to the stream as well as the
-    /// buffer (for reuse if needed).
-    ///
-    /// Any error which happens during writing will cause both the stream and
-    /// the buffer to get destroyed. Note that failure to write the entire
-    /// buffer is considered an error for the purposes of sending a datagram.
-    ///
-    /// The `buf` parameter here only requires the `AsRef<[u8]>` trait, which
-    /// should be broadly applicable to accepting data which can be converted
-    /// to a slice.
-    pub fn send_dgram<T>(self, buf: T, addr: &SocketAddr) -> SendDgram<T>
-        where T: AsRef<[u8]>,
-    {
-        SendDgram::new(self, buf, *addr)
-    }
-
     /// Receives data from the socket. On success, returns the number of bytes
     /// read and the address from whence the data came.
     ///
@@ -193,25 +97,6 @@ impl UdpSocket {
             }
             Err(e) => Poll::Ready(Err(e)),
         }
-    }
-
-    /// Creates a future that receive a datagram to be written to the buffer
-    /// provided.
-    ///
-    /// The returned future will return after a datagram has been received on
-    /// this socket. The future will resolve to the socket, the buffer, the
-    /// amount of data read, and the address the data was received from.
-    ///
-    /// An error during reading will cause the socket and buffer to get
-    /// destroyed.
-    ///
-    /// The `buf` parameter here only requires the `AsMut<[u8]>` trait, which
-    /// should be broadly applicable to accepting data which can be converted
-    /// to a slice.
-    pub fn recv_dgram<T>(self, buf: T) -> RecvDgram<T>
-        where T: AsMut<[u8]>,
-    {
-        RecvDgram::new(self, buf)
     }
 
     /// Check the UDP socket's read readiness state.

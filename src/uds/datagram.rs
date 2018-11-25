@@ -1,7 +1,4 @@
-use super::send_dgram::SendDgram;
-use super::recv_dgram::RecvDgram;
-
-use crate::reactor::{Handle, PollEvented};
+use crate::reactor::PollEvented;
 
 use futures::{Poll, ready};
 use futures::task::LocalWaker;
@@ -12,7 +9,7 @@ use std::fmt;
 use std::io;
 use std::net::Shutdown;
 use std::os::unix::io::{AsRawFd, RawFd};
-use std::os::unix::net::{self, SocketAddr};
+use std::os::unix::net::SocketAddr;
 use std::path::Path;
 
 /// An I/O object representing a Unix datagram socket.
@@ -43,17 +40,6 @@ impl UnixDatagram {
         Ok((a, b))
     }
 
-    /// Consumes a `UnixDatagram` in the standard library and returns a
-    /// nonblocking `UnixDatagram` from this crate.
-    ///
-    /// The returned datagram will be associated with the given event loop
-    /// specified by `handle` and is ready to perform I/O.
-    pub fn from_std(datagram: net::UnixDatagram, handle: &Handle) -> io::Result<UnixDatagram> {
-        let socket = mio_uds::UnixDatagram::from_datagram(datagram)?;
-        let io = PollEvented::new_with_handle(socket, handle)?;
-        Ok(UnixDatagram { io })
-    }
-
     fn new(socket: mio_uds::UnixDatagram) -> UnixDatagram {
         let io = PollEvented::new(socket);
         UnixDatagram { io }
@@ -63,14 +49,6 @@ impl UnixDatagram {
     pub fn unbound() -> io::Result<UnixDatagram> {
         let socket = mio_uds::UnixDatagram::unbound()?;
         Ok(UnixDatagram::new(socket))
-    }
-
-    /// Connects the socket to the specified address.
-    ///
-    /// The `send` method may be used to send data to the specified address.
-    /// `recv` and `recv_from` will only receive data from that address.
-    pub fn connect<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
-        self.io.get_ref().connect(path)
     }
 
     /// Test whether this socket is ready to be read or not.
@@ -114,30 +92,6 @@ impl UnixDatagram {
         }
     }
 
-    /// Receives data from the socket.
-    ///
-    /// On success, returns the number of bytes read.
-    pub fn poll_recv(&self, lw: &LocalWaker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
-        ready!(self.io.poll_read_ready(lw)?);
-
-        let r = self.io.get_ref().recv(buf);
-
-        if is_wouldblock(&r) {
-            self.io.clear_read_ready(lw)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(r)
-        }
-    }
-
-    /// Returns a future for receiving a datagram. See the documentation on RecvDgram for details.
-    pub fn recv_dgram<T>(self, buf: T) -> RecvDgram<T>
-    where
-        T: AsMut<[u8]>,
-    {
-        RecvDgram::new(self, buf)
-    }
-
     /// Sends data on the socket to the specified address.
     ///
     /// On success, returns the number of bytes written.
@@ -155,34 +109,6 @@ impl UnixDatagram {
         } else {
             Poll::Ready(r)
         }
-    }
-
-    /// Sends data on the socket to the socket's peer.
-    ///
-    /// The peer address may be set by the `connect` method, and this method
-    /// will return an error if the socket has not already been connected.
-    ///
-    /// On success, returns the number of bytes written.
-    pub fn poll_send(&self, lw: &LocalWaker, buf: &[u8]) -> Poll<io::Result<usize>> {
-        ready!(self.io.poll_write_ready(lw)?);
-
-        let r = self.io.get_ref().send(buf);
-
-        if is_wouldblock(&r) {
-            self.io.clear_write_ready(lw)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(r)
-        }
-    }
-
-    /// Returns a future sending the data in buf to the socket at path.
-    pub fn send_dgram<T, P>(self, buf: T, path: P) -> SendDgram<T, P>
-    where
-        T: AsRef<[u8]>,
-        P: AsRef<Path>,
-    {
-        SendDgram::new(self, buf, path)
     }
 
     /// Returns the value of the `SO_ERROR` option.

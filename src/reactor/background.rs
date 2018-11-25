@@ -60,7 +60,7 @@ const SHUTDOWN: usize = 3;
 
 impl Background {
     /// Launch a reactor in the background and return a handle to the thread.
-    pub(crate) fn new(reactor: Reactor) -> io::Result<Background> {
+    pub(super) fn new(reactor: Reactor) -> io::Result<Background> {
         // Grab a handle to the reactor
         let handle = reactor.handle().clone();
 
@@ -84,31 +84,6 @@ impl Background {
                 shared,
             }),
         })
-    }
-
-    /// Returns a reference to the reactor handle.
-    pub fn handle(&self) -> &Handle {
-        &self.inner.as_ref().unwrap().handle
-    }
-
-    /// Shutdown the reactor on idle.
-    ///
-    /// Returns a future that completes once the reactor thread has shutdown.
-    pub fn shutdown_on_idle(mut self) -> Shutdown {
-        let inner = self.inner.take().unwrap();
-        inner.shutdown_on_idle();
-
-        Shutdown { inner }
-    }
-
-    /// Shutdown the reactor immediately
-    ///
-    /// Returns a future that completes once the reactor thread has shutdown.
-    pub fn shutdown_now(mut self) -> Shutdown {
-        let inner = self.inner.take().unwrap();
-        inner.shutdown_now();
-
-        Shutdown { inner }
     }
 
     /// Run the reactor on its thread until the process terminates.
@@ -153,14 +128,6 @@ impl Inner {
     /// Returns true if the reactor thread is shutdown.
     fn is_shutdown(&self) -> bool {
         self.shared.shutdown.load(SeqCst) == SHUTDOWN
-    }
-
-    /// Notify the reactor thread to shutdown once the reactor transitions to an
-    /// idle state.
-    fn shutdown_on_idle(&self) {
-       self.shared.shutdown
-           .compare_and_swap(0, SHUTDOWN_IDLE, SeqCst);
-       self.handle.wakeup();
     }
 
     /// Notify the reactor thread to shutdown immediately.

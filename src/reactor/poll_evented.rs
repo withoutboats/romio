@@ -1,4 +1,4 @@
-use super::{Handle, Registration};
+use super::Registration;
 
 use futures::{Poll, ready};
 use futures::task::LocalWaker;
@@ -116,18 +116,6 @@ where E: Evented
                 write_readiness: AtomicUsize::new(0),
             }
         }
-    }
-
-    /// Creates a new `PollEvented` associated with the specified reactor.
-    pub fn new_with_handle(io: E, handle: &Handle) -> io::Result<Self> {
-        let ret = PollEvented::new(io);
-
-        if let Some(handle) = handle.as_priv() {
-            ret.inner.registration
-                .register_with_priv(ret.io.as_ref().unwrap(), handle)?;
-        }
-
-        Ok(ret)
     }
 
     /// Returns a shared reference to the underlying I/O object this readiness

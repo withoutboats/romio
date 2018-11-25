@@ -1,4 +1,4 @@
-use super::{Handle, HandlePriv, Direction};
+use super::{HandlePriv, Direction};
 
 use futures::Poll;
 use futures::task::LocalWaker;
@@ -145,35 +145,6 @@ impl Registration {
         }
 
         Ok(())
-    }
-
-    /// Register the I/O resource with the specified reactor.
-    ///
-    /// This function is safe to call concurrently and repeatedly. However, only
-    /// the first call will establish the registration. Subsequent calls will be
-    /// no-ops.
-    ///
-    /// If the registration happened successfully, `Ok(true)` is returned.
-    ///
-    /// If an I/O resource has previously been successfully registered,
-    /// `Ok(false)` is returned.
-    ///
-    /// If an error is encountered during registration, `Err` is returned.
-    pub fn register_with<T>(&self, io: &T, handle: &Handle) -> io::Result<bool>
-    where T: Evented,
-    {
-        self.register2(io, || {
-            match handle.as_priv() {
-                Some(handle) => Ok(handle.clone()),
-                None => HandlePriv::try_current(),
-            }
-        })
-    }
-
-    pub(super) fn register_with_priv<T>(&self, io: &T, handle: &HandlePriv) -> io::Result<bool>
-    where T: Evented,
-    {
-        self.register2(io, || Ok(handle.clone()))
     }
 
     fn register2<T, F>(&self, io: &T, f: F) -> io::Result<bool>

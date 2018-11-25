@@ -1,6 +1,6 @@
 use super::ucred::{self, UCred};
 
-use crate::reactor::{Handle, PollEvented};
+use crate::reactor::PollEvented;
 
 use futures::{Future, Poll, ready};
 use futures::io::{AsyncRead, AsyncWrite};
@@ -12,7 +12,7 @@ use std::fmt;
 use std::io;
 use std::net::Shutdown;
 use std::os::unix::io::{AsRawFd, RawFd};
-use std::os::unix::net::{self, SocketAddr};
+use std::os::unix::net::SocketAddr;
 use std::path::Path;
 use std::pin::Pin;
 
@@ -58,18 +58,6 @@ impl UnixStream {
         };
 
         ConnectFuture { inner }
-    }
-
-    /// Consumes a `UnixStream` in the standard library and returns a
-    /// nonblocking `UnixStream` from this crate.
-    ///
-    /// The returned stream will be associated with the given event loop
-    /// specified by `handle` and is ready to perform I/O.
-    pub fn from_std(stream: net::UnixStream, handle: &Handle) -> io::Result<UnixStream> {
-        let stream = mio_uds::UnixStream::from_stream(stream)?;
-        let io = PollEvented::new_with_handle(stream, handle)?;
-
-        Ok(UnixStream { io })
     }
 
     /// Creates an unnamed pair of connected sockets.
