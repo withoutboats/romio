@@ -243,7 +243,7 @@ where E: Evented
         let mask = mio::Ready::writable() | super::platform::hup();
 
         // See if the current readiness matches any bits.
-        let mut ret = mio::Ready::from_usize(cached) & mio::Ready::readable();
+        let mut ret = mio::Ready::from_usize(cached) & mio::Ready::writable();
 
         if ret.is_empty() {
             // Readiness does not match, consume the registration's readiness

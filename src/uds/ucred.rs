@@ -65,7 +65,7 @@ pub mod impl_linux {
 pub mod impl_macos {
     use libc::getpeereid;
     use std::{io, mem};
-    use UnixStream;
+    use crate::uds::UnixStream;
     use std::os::unix::io::AsRawFd;
 
     pub fn get_peer_cred(sock: &UnixStream) -> io::Result<super::UCred> {
@@ -89,7 +89,7 @@ pub mod impl_macos {
 #[cfg(not(target_os = "dragonfly"))]
 #[cfg(test)]
 mod test {
-    use crate::UnixStream;
+    use crate::uds::UnixStream;
     use libc::geteuid;
     use libc::getegid;
 
