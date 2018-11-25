@@ -117,37 +117,6 @@ impl TcpStream {
         self.io.get_ref().peer_addr()
     }
 
-    /// Receives data on the socket from the remote address to which it is
-    /// connected, without removing that data from the queue. On success,
-    /// returns the number of bytes peeked.
-    ///
-    /// Successive calls return the same data. This is accomplished by passing
-    /// `MSG_PEEK` as a flag to the underlying recv system call.
-    ///
-    /// # Return
-    ///
-    /// On success, returns `Ok(Async::Ready(num_bytes_read))`.
-    ///
-    /// If no data is available for reading, the method returns
-    /// `Ok(Poll::Pending)` and arranges for the current task to receive a
-    /// notification when the socket becomes readable or is closed.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if called from outside of a task context.
-    pub fn poll_peek(&mut self, buf: &mut [u8], lw: &LocalWaker) -> Poll<io::Result<usize>> {
-        ready!(self.io.poll_read_ready(lw)?);
-
-        match self.io.get_ref().peek(buf) {
-            Ok(ret) => Poll::Ready(Ok(ret.into())),
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_read_ready(lw)?;
-                Poll::Pending
-            }
-            Err(e) => Poll::Ready(Err(e)),
-        }
-    }
-
     /// Shuts down the read, write, or both halves of this connection.
     ///
     /// This function will cause all pending and future I/O on the specified
