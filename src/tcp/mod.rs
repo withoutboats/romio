@@ -5,13 +5,15 @@
 //! `async`/`await`.
 //!
 //! - To connect to an address via TCP, use [`TcpStream::connect`].
-//! - To listen for TCP connection, use [`TcpListener::incoming`].
+//! - To listen for TCP connection, use [`TcpListener::bind`] and then
+//!   [`TcpListener::incoming`].
 //! - Once you have a [`TcpStream`], you can use methods from `AsyncRead`,
 //!   `AsyncWrite`, and their extension traits (`AsyncReadExt`, `AsyncWriteExt`)
 //!   to send and receive data.
 //!
 //! [`TcpStream`]: struct.TcpStream.html
 //! [`TcpStream::connect`]: struct.TcpStream.html#method.connect
+//! [`TcpListener::bind`]: struct.TcpListener.html#method.bind
 //! [`TcpListener::incoming`]: struct.TcpListener.html#method.incoming
 //!
 //! # Example
