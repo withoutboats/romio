@@ -1,42 +1,12 @@
-//! Event loop that drives Tokio I/O resources.
-//!
-//! The reactor is the engine that drives asynchronous I/O resources (like TCP and
-//! UDP sockets). It is backed by [`mio`] and acts as a bridge between [`mio`] and
-//! [`futures`].
-//!
-//! The crate provides:
-//!
-//! * [`Reactor`] is the main type of this crate. It performs the event loop logic.
-//!
-//! * [`Handle`] provides a reference to a reactor instance.
-//!
-//! * [`Registration`] and [`PollEvented`] allow third parties to implement I/O
-//!   resources that are driven by the reactor.
-//!
-//! Application authors will not use this crate directly. Instead, they will use the
-//! `tokio` crate. Library authors should only depend on `tokio-reactor` if they
-//! are building a custom I/O resource.
-//!
-//! For more details, see [reactor module] documentation in the Tokio crate.
-//!
-//! [`mio`]: http://github.com/carllerche/mio
-//! [`futures`]: http://github.com/rust-lang-nursery/futures-rs
-//! [`Reactor`]: struct.Reactor.html
-//! [`Handle`]: struct.Handle.html
-//! [`Registration`]: struct.Registration.html
-//! [`PollEvented`]: struct.PollEvented.html
-//! [reactor module]: https://docs.rs/tokio/0.1/tokio/reactor/index.html
-
 pub(crate) mod background;
-pub mod park;
 mod poll_evented;
 mod registration;
 mod sharded_rwlock;
 
 // ===== Public re-exports =====
 
-pub use self::background::{Background, Shutdown};
-pub use self::registration::Registration;
+use self::background::Background;
+use self::registration::Registration;
 pub use self::poll_evented::PollEvented;
 
 // ===== Private imports =====
@@ -44,7 +14,6 @@ pub use self::poll_evented::PollEvented;
 use self::sharded_rwlock::RwLock;
 
 use std::{fmt, usize};
-use std::error::Error;
 use std::io;
 use std::mem;
 use std::cell::RefCell;
@@ -53,7 +22,6 @@ use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
-use futures::executor::Enter;
 use futures::task::{AtomicWaker, LocalWaker};
 use log::{Level, debug, trace, log_enabled};
 use mio::event::Evented;
@@ -65,7 +33,7 @@ use slab::Slab;
 /// all other I/O events and notifications happening. Each event loop can have
 /// multiple handles pointing to it, each of which can then be used to create
 /// various I/O objects to interact with the event loop in interesting ways.
-pub struct Reactor {
+struct Reactor {
     /// Reuse the `mio::Events` value across calls to poll.
     events: mio::Events,
 
@@ -84,7 +52,7 @@ pub struct Reactor {
 /// By default, most components bind lazily to reactors.
 /// To get this behavior when manually passing a `Handle`, use `default()`.
 #[derive(Clone)]
-pub struct Handle {
+struct Handle {
     inner: Option<HandlePriv>,
 }
 
@@ -99,13 +67,9 @@ struct HandlePriv {
 /// Currently this value doesn't actually provide any functionality, but it may
 /// in the future give insight into what happened during `turn`.
 #[derive(Debug)]
-pub struct Turn {
+struct Turn {
     _priv: (),
 }
-
-/// Error returned from `Handle::set_fallback`.
-#[derive(Clone, Debug)]
-pub struct SetFallbackError(());
 
 #[test]
 fn test_handle_size() {
@@ -160,56 +124,10 @@ fn _assert_kinds() {
 
 // ===== impl Reactor =====
 
-/// Set the default reactor for the duration of the closure
-///
-/// # Panics
-///
-/// This function panics if there already is a default reactor set.
-pub fn with_default<F, R>(handle: &Handle, enter: &mut Enter, f: F) -> R
-where F: FnOnce(&mut Enter) -> R
-{
-    // Ensure that the executor is removed from the thread-local context
-    // when leaving the scope. This handles cases that involve panicking.
-    struct Reset;
-
-    impl Drop for Reset {
-        fn drop(&mut self) {
-            CURRENT_REACTOR.with(|current| {
-                let mut current = current.borrow_mut();
-                *current = None;
-            });
-        }
-    }
-
-    // This ensures the value for the current reactor gets reset even if there
-    // is a panic.
-    let _r = Reset;
-
-    CURRENT_REACTOR.with(|current| {
-        {
-            let mut current = current.borrow_mut();
-
-            assert!(current.is_none(), "default Tokio reactor already set \
-                    for execution context");
-
-            let handle = match handle.as_priv() {
-                Some(handle) => handle,
-                None => {
-                    panic!("`handle` does not reference a reactor");
-                }
-            };
-
-            *current = Some(handle.clone());
-        }
-
-        f(enter)
-    })
-}
-
 impl Reactor {
     /// Creates a new event loop, returning any error that happened during the
     /// creation.
-    pub fn new() -> io::Result<Reactor> {
+    fn new() -> io::Result<Reactor> {
         let io = mio::Poll::new()?;
         let wakeup_pair = mio::Registration::new2();
 
@@ -236,39 +154,12 @@ impl Reactor {
     /// Handles are cloneable and clones always refer to the same event loop.
     /// This handle is typically passed into functions that create I/O objects
     /// to bind them to this event loop.
-    pub fn handle(&self) -> Handle {
+    fn handle(&self) -> Handle {
         Handle {
             inner: Some(HandlePriv {
                 inner: Arc::downgrade(&self.inner),
             }),
         }
-    }
-
-    /// Configures the fallback handle to be returned from `Handle::default`.
-    ///
-    /// The `Handle::default()` function will by default lazily spin up a global
-    /// thread and run a reactor on this global thread. This behavior is not
-    /// always desirable in all applications, however, and sometimes a different
-    /// fallback reactor is desired.
-    ///
-    /// This function will attempt to globally alter the return value of
-    /// `Handle::default()` to return the `handle` specified rather than a
-    /// lazily initialized global thread. If successful then all future calls to
-    /// `Handle::default()` which would otherwise fall back to the global thread
-    /// will instead return a clone of the handle specified.
-    ///
-    /// # Errors
-    ///
-    /// This function may not always succeed in configuring the fallback handle.
-    /// If this function was previously called (or perhaps concurrently called
-    /// on many threads) only the *first* invocation of this function will
-    /// succeed. All other invocations will return an error.
-    ///
-    /// Additionally if the global reactor thread has already been initialized
-    /// then this function will also return an error. (aka if `Handle::default`
-    /// has been called previously in this program).
-    pub fn set_fallback(&self) -> Result<(), SetFallbackError> {
-        set_fallback(self.handle().into_priv().unwrap())
     }
 
     /// Performs one iteration of the event loop, blocking on waiting for events
@@ -297,7 +188,7 @@ impl Reactor {
     /// arise and typically mean that things have gone horribly wrong at that
     /// point. Currently this is primarily only known to happen for internal
     /// bugs to `tokio` itself.
-    pub fn turn(&mut self, max_wait: Option<Duration>) -> io::Result<Turn> {
+    fn turn(&mut self, max_wait: Option<Duration>) -> io::Result<Turn> {
         self.poll(max_wait)?;
         Ok(Turn { _priv: () })
     }
@@ -306,7 +197,7 @@ impl Reactor {
     ///
     /// Idle is defined as all tasks that have been spawned have completed,
     /// either successfully or with an error.
-    pub fn is_idle(&self) -> bool {
+    fn is_idle(&self) -> bool {
         self.inner.io_dispatch
             .read()
             .is_empty()
@@ -318,7 +209,7 @@ impl Reactor {
     /// reactor to this new thread. It then runs the reactor, driving all
     /// associated I/O resources, until the `Background` handle is dropped or
     /// explicitly shutdown.
-    pub fn background(self) -> io::Result<Background> {
+    fn background(self) -> io::Result<Background> {
         Background::new(self)
     }
 
@@ -412,20 +303,6 @@ impl fmt::Debug for Reactor {
 // ===== impl Handle =====
 
 impl Handle {
-    /// Returns a handle to the current reactor.
-    pub fn current() -> Handle {
-        // TODO: Should this panic on error?
-        HandlePriv::try_current()
-            .map(|handle| Handle {
-                inner: Some(handle),
-            })
-            .unwrap_or(Handle {
-                inner: Some(HandlePriv {
-                    inner: Weak::new(),
-                })
-            })
-    }
-
     fn as_priv(&self) -> Option<&HandlePriv> {
         self.inner.as_ref()
     }
@@ -454,14 +331,14 @@ impl fmt::Debug for Handle {
     }
 }
 
-fn set_fallback(handle: HandlePriv) -> Result<(), SetFallbackError> {
+fn set_fallback(handle: HandlePriv) -> Result<(), ()> {
     unsafe {
         let val = handle.into_usize();
         match HANDLE_FALLBACK.compare_exchange(0, val, SeqCst, SeqCst) {
             Ok(_) => Ok(()),
             Err(_) => {
                 drop(HandlePriv::from_usize(val));
-                Err(SetFallbackError(()))
+                Err(())
             }
         }
     }
@@ -689,46 +566,5 @@ mod platform {
 
     pub fn is_hup(_: &Ready) -> bool {
         false
-    }
-}
-
-// ===== impl SetFallbackError =====
-
-impl fmt::Display for SetFallbackError {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "{}", self.description())
-    }
-}
-
-impl Error for SetFallbackError {
-    fn description(&self) -> &str {
-        "attempted to set fallback reactor while already configured"
-    }
-}
-
-impl park::Park for Reactor {
-    type Unpark = Handle;
-    type Error = io::Error;
-
-    fn unpark(&self) -> Self::Unpark {
-        self.handle()
-    }
-
-    fn park(&mut self) -> io::Result<()> {
-        self.turn(None)?;
-        Ok(())
-    }
-
-    fn park_timeout(&mut self, duration: Duration) -> io::Result<()> {
-        self.turn(Some(duration))?;
-        Ok(())
-    }
-}
-
-impl park::Unpark for Handle {
-    fn unpark(&self) {
-        if let Some(ref h) = self.inner {
-            h.wakeup();
-        }
     }
 }
