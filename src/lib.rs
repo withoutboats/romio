@@ -15,7 +15,7 @@
 //! Because futures-preview is currently unstable, this crate requires
 //! nightly Rust.
 //!
-//! ## Examples
+//! # Examples
 //! __TCP Server__
 //! ```rust
 //! #![feature(async_await, await_macro, futures_api)]

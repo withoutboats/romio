@@ -60,7 +60,7 @@ impl TcpListener {
     /// to this listener. The port allocated can be queried via the
     /// [`local_addr`] method.
     ///
-    /// ## Examples
+    /// # Examples
     /// Create a TCP listener bound to 127.0.0.1:80:
     ///
     /// ```rust,no_run
@@ -87,6 +87,21 @@ impl TcpListener {
     ///
     /// This can be useful, for example, when binding to port 0 to figure out
     /// which port was actually bound.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use romio::tcp::TcpListener;
+    /// use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+    ///
+    /// # fn main () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let socket_addr = "127.0.0.1:8080".parse()?;
+    /// let listener = TcpListener::bind(&socket_addr)?;
+    ///
+    /// let expected = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080);
+    /// assert_eq!(listener.local_addr()?, SocketAddr::V4(expected));
+    /// # Ok(())}
+    /// ```
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().local_addr()
     }
@@ -103,6 +118,30 @@ impl TcpListener {
     /// necessarily fatal ‒ for example having too many open file descriptors or the other side
     /// closing the connection while it waits in an accept queue. These would terminate the stream
     /// if not handled in any way.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::prelude::*;
+    /// use romio::tcp::TcpListener;
+    ///
+    /// # async fn work () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let socket_addr = "127.0.0.1:80".parse()?;
+    /// let listener = TcpListener::bind(&socket_addr)?;
+    /// let mut incoming = listener.incoming();
+    ///
+    /// // accept connections and process them serially
+    /// while let Some(stream) = await!(incoming.next()) {
+    ///     match stream {
+    ///         Ok(stream) => {
+    ///             println!("new client!");
+    ///         },
+    ///         Err(e) => { /* connection failed */ }
+    ///     }
+    /// }
+    /// # Ok(())}
+    /// ```
     pub fn incoming(self) -> Incoming {
         Incoming::new(self)
     }
@@ -112,6 +151,21 @@ impl TcpListener {
     /// For more information about this option, see [`set_ttl`].
     ///
     /// [`set_ttl`]: #method.set_ttl
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::prelude::*;
+    /// use romio::tcp::TcpListener;
+    ///
+    /// # fn main () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let socket_addr = "127.0.0.1:0".parse()?;
+    /// let listener = TcpListener::bind(&socket_addr)?;
+    /// listener.set_ttl(100)?;
+    /// assert_eq!(listener.ttl()?, 100);
+    /// # Ok(()) }
+    /// ```
     pub fn ttl(&self) -> io::Result<u32> {
         self.io.get_ref().ttl()
     }
@@ -120,6 +174,20 @@ impl TcpListener {
     ///
     /// This value sets the time-to-live field that is used in every packet sent
     /// from this socket.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::prelude::*;
+    /// use romio::tcp::TcpListener;
+    ///
+    /// # fn main () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let socket_addr = "127.0.0.1:0".parse()?;
+    /// let listener = TcpListener::bind(&socket_addr)?;
+    /// listener.set_ttl(100)?;
+    /// # Ok(()) }
+    /// ```
     pub fn set_ttl(&self, ttl: u32) -> io::Result<()> {
         self.io.get_ref().set_ttl(ttl)
     }
