@@ -12,19 +12,55 @@ use mio;
 
 use crate::reactor::PollEvented;
 
-/// An I/O object representing a TCP socket listening for incoming connections.
+/// A TCP socket server, listening for connections.
 ///
-/// This object can be converted into a stream of incoming connections for
-/// various forms of processing.
+/// After creating a `TcpListener` by [`bind`]ing it to a socket address, it listens
+/// for incoming TCP connections. These can be accepted by awaiting elements from the
+/// async stream of incoming connections, [`incoming`][`TcpListener::incoming`].
+///
+/// The socket will be closed when the value is dropped.
+///
+/// [`bind`]: #method.bind
+/// [`TcpListener::incoming`]: #method.incoming
+///
+/// # Examples
+///
+/// ```no_run
+/// #![feature(async_await)]
+///
+/// use romio::tcp::{TcpListener, TcpStream};
+/// use futures::prelude::*;
+///
+/// async fn handle_client(stream: TcpStream) {
+///     await!(stream.write_all(b"Hello, client!"));
+/// }
+///
+/// async fn listen() -> io::Result<()> {
+///     let listener = TcpListener::bind("127.0.0.1:80")?;
+///     let mut incoming = listener.incoming();
+///
+///     // accept connections and process them serially
+///     while let Some(stream) = await!(incoming.next()) {
+///         await!(handle_client(stream?));
+///     }
+///     Ok(())
+/// }
+/// ```
 pub struct TcpListener {
     io: PollEvented<mio::net::TcpListener>,
 }
 
 impl TcpListener {
-    /// Create a new TCP listener associated with this event loop.
+    /// Creates a new `TcpListener` which will be bound to the specified
+    /// address.
     ///
-    /// The TCP listener will bind to the provided `addr` address, if available.
-    /// If the result is `Ok`, the socket has successfully bound.
+    /// The returned listener is ready for accepting connections.
+    ///
+    /// Binding with a port number of 0 will request that the OS assigns a port
+    /// to this listener. The port allocated can be queried via the
+    /// [`local_addr`] method.
+    ///
+    /// [`local_addr`]: #method.local_addr
     pub fn bind(addr: &SocketAddr) -> io::Result<TcpListener> {
         let l = mio::net::TcpListener::bind(addr)?;
         Ok(TcpListener::new(l))
@@ -55,9 +91,6 @@ impl TcpListener {
     /// necessarily fatal ‒ for example having too many open file descriptors or the other side
     /// closing the connection while it waits in an accept queue. These would terminate the stream
     /// if not handled in any way.
-    ///
-    /// If aiming for production, decision what to do about them must be made. The
-    /// [`tk-listen`](https://crates.io/crates/tk-listen) crate might be of some help.
     pub fn incoming(self) -> Incoming {
         Incoming::new(self)
     }
@@ -121,20 +154,6 @@ mod sys {
             self.io.get_ref().as_raw_fd()
         }
     }
-}
-
-#[cfg(windows)]
-mod sys {
-    // TODO: let's land these upstream with mio and then we can add them here.
-    //
-    // use std::os::windows::prelude::*;
-    // use super::{TcpListener;
-    //
-    // impl AsRawHandle for TcpListener {
-    //     fn as_raw_handle(&self) -> RawHandle {
-    //         self.listener.io().as_raw_handle()
-    //     }
-    // }
 }
 
 /// Stream returned by the `TcpListener::incoming` function representing the
