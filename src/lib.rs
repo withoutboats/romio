@@ -27,3 +27,8 @@ pub mod udp;
 pub mod uds;
 
 mod reactor;
+
+#[doc(inline)]
+pub use crate::tcp::{TcpStream, TcpListener};
+#[doc(inline)]
+pub use crate::udp::UdpSocket;
