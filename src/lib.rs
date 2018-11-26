@@ -14,6 +14,29 @@
 //!
 //! Because futures-preview is currently unstable, this crate requires
 //! nightly Rust.
+//!
+//! ## Examples
+//! __TCP Server__
+//! ```rust
+//!#![feature(async_await)]
+//! use romio::tcp::{TcpListener, TcpStream};
+//! use futures::prelude::*;
+//!
+//! async fn say_hello(stream: TcpStream) {
+//!     await!(stream.write_all(b"Hello, client!"));
+//! }
+//!
+//! async fn listen() -> io::Result<()> {
+//!     let listener = TcpListener::bind("127.0.0.1:80")?;
+//!     let mut incoming = listener.incoming();
+//!
+//!     // accept connections and process them serially
+//!     while let Some(stream) = await!(incoming.next()) {
+//!         await!(say_hello(stream?));
+//!     }
+//!     Ok(())
+//! }
+//! ```
 
 #![feature(futures_api, pin, arbitrary_self_types)]
 #![doc(html_root_url = "https://docs.rs/tokio-reactor/0.1.6")]
