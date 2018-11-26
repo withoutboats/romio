@@ -1,20 +1,15 @@
-//! UDP bindings for `tokio`.
+//! Async UDP bindings.
 //!
-//! This module contains the UDP networking types, similar to the standard
-//! library, which can be used to implement networking protocols.
+//! This module contains the UDP networking types, similar to those found in
+//! `std::net`, but suitable for async programming via futures and
+//! `async`/`await`.
 //!
-//! The main struct for UDP is the [`UdpSocket`], which represents a UDP socket.
-//! Reading and writing to it can be done using futures, which return the
-//! [`RecvDgram`] and [`SendDgram`] structs respectively.
+//! After creating a `UdpSocket` by [`bind`]ing it to a socket address, data can be
+//! [sent to] and [received from] any other socket address.
 //!
-//! For convenience it's also possible to convert raw datagrams into higher-level
-//! frames.
-//!
-//! [`UdpSocket`]: struct.UdpSocket.html
-//! [`RecvDgram`]: struct.RecvDgram.html
-//! [`SendDgram`]: struct.SendDgram.html
-//! [`UdpFramed`]: struct.UdpFramed.html
-//! [`framed`]: struct.UdpSocket.html#method.framed
+//! [`bind`]: #method.bind
+//! [received from]: #method.poll_recv_from
+//! [sent to]: #method.poll_send_to
 
 use std::fmt;
 use std::io;
@@ -26,14 +21,13 @@ use mio;
 
 use crate::reactor::PollEvented;
 
-/// An I/O object representing a UDP socket.
+/// A UDP socket.
 pub struct UdpSocket {
     io: PollEvented<mio::net::UdpSocket>,
 }
 
 impl UdpSocket {
-    /// This function will create a new UDP socket and attempt to bind it to
-    /// the `addr` provided.
+    /// Creates a UDP socket from the given address.
     pub fn bind(addr: &SocketAddr) -> io::Result<UdpSocket> {
         mio::net::UdpSocket::bind(addr).map(UdpSocket::new)
     }
@@ -51,7 +45,7 @@ impl UdpSocket {
     /// Sends data on the socket to the given address. On success, returns the
     /// number of bytes written.
     ///
-    /// This will return an error when the IP version of the local socket
+    /// Returns an error when the IP version of the local socket
     /// does not match that of `target`.
     ///
     /// # Return
@@ -61,10 +55,6 @@ impl UdpSocket {
     /// If the socket is not ready for writing, the method returns
     /// `Ok(Poll::Pending)` and arranges for the current task to receive a
     /// notification when the socket becomes writable.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if called from outside of a task context.
     pub fn poll_send_to(
         &mut self,
         lw: &LocalWaker,
@@ -86,10 +76,9 @@ impl UdpSocket {
     /// Receives data from the socket. On success, returns the number of bytes
     /// read and the address from whence the data came.
     ///
-    /// # Panics
-    ///
-    /// This function will panic if called outside the context of a future's
-    /// task.
+    /// If the socket is not ready for receiving, the method returns
+    /// `Ok(Poll::Pending)` and arranges for the current task to receive a
+    /// notification when the socket becomes readable.
     pub fn poll_recv_from(
         &mut self,
         lw: &LocalWaker,
@@ -108,10 +97,6 @@ impl UdpSocket {
     }
 
     /// Check the UDP socket's read readiness state.
-    ///
-    /// The mask argument allows specifying what readiness to notify on. This
-    /// can be any value, including platform specific readiness, **except**
-    /// `writable`.
     ///
     /// If the socket is not ready for receiving then `Poll::Pending` is
     /// returned and the current task is notified once a new event is received.
@@ -284,18 +269,4 @@ mod sys {
             self.io.get_ref().as_raw_fd()
         }
     }
-}
-
-#[cfg(windows)]
-mod sys {
-    // TODO: let's land these upstream with mio and then we can add them here.
-    //
-    // use std::os::windows::prelude::*;
-    // use super::UdpSocket;
-    //
-    // impl AsRawHandle for UdpSocket {
-    //     fn as_raw_handle(&self) -> RawHandle {
-    //         self.io.get_ref().as_raw_handle()
-    //     }
-    // }
 }
