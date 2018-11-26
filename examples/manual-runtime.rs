@@ -82,5 +82,6 @@ fn main() {
         // We can spawn on the default executor, which is also the local one.
         tokio::executor::spawn(deadline);
         Ok(())
-    })).unwrap();
+    }))
+    .unwrap();
 }

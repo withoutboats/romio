@@ -1,8 +1,8 @@
 use super::Registration;
 
-use futures::{Poll, ready};
-use futures::task::LocalWaker;
 use futures::io::{AsyncRead, AsyncWrite};
+use futures::task::LocalWaker;
+use futures::{ready, Poll};
 use mio;
 use mio::event::Evented;
 
@@ -104,7 +104,8 @@ struct Inner {
 // ===== impl PollEvented =====
 
 impl<E> PollEvented<E>
-where E: Evented
+where
+    E: Evented,
 {
     /// Creates a new `PollEvented` associated with the default reactor.
     pub fn new(io: E) -> PollEvented<E> {
@@ -114,7 +115,7 @@ where E: Evented
                 registration: Registration::new(),
                 read_readiness: AtomicUsize::new(0),
                 write_readiness: AtomicUsize::new(0),
-            }
+            },
         }
     }
 
@@ -182,7 +183,7 @@ where E: Evented
                 ret |= ready & mask;
 
                 if !ret.is_empty() {
-                    return Poll::Ready(Ok(ret))
+                    return Poll::Ready(Ok(ret));
                 }
             }
         } else {
@@ -206,7 +207,9 @@ where E: Evented
     /// The `mask` argument specifies the readiness bits to clear. This may not
     /// include `writable` or `hup`.
     pub fn clear_read_ready(&self, lw: &LocalWaker) -> io::Result<()> {
-        self.inner.read_readiness.fetch_and(!mio::Ready::readable().as_usize(), Relaxed);
+        self.inner
+            .read_readiness
+            .fetch_and(!mio::Ready::readable().as_usize(), Relaxed);
 
         if self.poll_read_ready(lw)?.is_ready() {
             // Notify the current task
@@ -259,7 +262,7 @@ where E: Evented
                 ret |= ready & mask;
 
                 if !ret.is_empty() {
-                    return Poll::Ready(Ok(ret))
+                    return Poll::Ready(Ok(ret));
                 }
             }
         } else {
@@ -287,7 +290,9 @@ where E: Evented
     ///
     /// This function will panic if called from outside of a task context.
     pub fn clear_write_ready(&self, lw: &LocalWaker) -> io::Result<()> {
-        self.inner.write_readiness.fetch_and(!mio::Ready::writable().as_usize(), Relaxed);
+        self.inner
+            .write_readiness
+            .fetch_and(!mio::Ready::writable().as_usize(), Relaxed);
 
         if self.poll_write_ready(lw)?.is_ready() {
             // Notify the current task
@@ -299,7 +304,9 @@ where E: Evented
 
     /// Ensure that the I/O resource is registered with the reactor.
     fn register(&self) -> io::Result<()> {
-        self.inner.registration.register(self.io.as_ref().unwrap())?;
+        self.inner
+            .registration
+            .register(self.io.as_ref().unwrap())?;
         Ok(())
     }
 }
@@ -307,7 +314,8 @@ where E: Evented
 // ===== AsyncRead / AsyncWrite impls =====
 
 impl<E> AsyncRead for PollEvented<E>
-where E: Evented + Read,
+where
+    E: Evented + Read,
 {
     fn poll_read(&mut self, lw: &LocalWaker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
         ready!(self.poll_read_ready(lw)?);
@@ -324,7 +332,8 @@ where E: Evented + Read,
 }
 
 impl<E> AsyncWrite for PollEvented<E>
-where E: Evented + Write,
+where
+    E: Evented + Write,
 {
     fn poll_write(&mut self, lw: &LocalWaker, buf: &[u8]) -> Poll<io::Result<usize>> {
         ready!(self.poll_write_ready(lw)?);
@@ -360,7 +369,9 @@ where E: Evented + Write,
 // ===== &'a AsyncRead / &'a AsyncWrite impls =====
 
 impl<'a, E> AsyncRead for &'a PollEvented<E>
-where E: Evented, &'a E: Read,
+where
+    E: Evented,
+    &'a E: Read,
 {
     fn poll_read(&mut self, lw: &LocalWaker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
         ready!(self.poll_read_ready(lw)?);
@@ -377,7 +388,9 @@ where E: Evented, &'a E: Read,
 }
 
 impl<'a, E> AsyncWrite for &'a PollEvented<E>
-where E: Evented, &'a E: Write,
+where
+    E: Evented,
+    &'a E: Write,
 {
     fn poll_write(&mut self, lw: &LocalWaker, buf: &[u8]) -> Poll<io::Result<usize>> {
         ready!(self.poll_write_ready(lw)?);
@@ -419,9 +432,7 @@ fn is_wouldblock<T>(r: &io::Result<T>) -> bool {
 
 impl<E: Evented + fmt::Debug> fmt::Debug for PollEvented<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PollEvented")
-         .field("io", &self.io)
-         .finish()
+        f.debug_struct("PollEvented").field("io", &self.io).finish()
     }
 }
 

@@ -5,13 +5,12 @@ use std::io;
 use std::net::{self, SocketAddr};
 use std::pin::Pin;
 
-use futures::{Poll, ready};
-use futures::task::LocalWaker;
 use futures::stream::Stream;
+use futures::task::LocalWaker;
+use futures::{ready, Poll};
 use mio;
 
 use crate::reactor::PollEvented;
-
 
 /// An I/O object representing a TCP socket listening for incoming connections.
 ///
@@ -89,9 +88,10 @@ impl TcpListener {
         Poll::Ready(Ok((io, addr)))
     }
 
-    fn poll_accept_std(&mut self, lw: &LocalWaker)
-        -> Poll<io::Result<(net::TcpStream, SocketAddr)>>
-    {
+    fn poll_accept_std(
+        &mut self,
+        lw: &LocalWaker,
+    ) -> Poll<io::Result<(net::TcpStream, SocketAddr)>> {
         ready!(self.io.poll_read_ready(lw)?);
 
         match self.io.get_ref().accept_std() {
@@ -113,8 +113,8 @@ impl fmt::Debug for TcpListener {
 
 #[cfg(unix)]
 mod sys {
-    use std::os::unix::prelude::*;
     use super::TcpListener;
+    use std::os::unix::prelude::*;
 
     impl AsRawFd for TcpListener {
         fn as_raw_fd(&self) -> RawFd {

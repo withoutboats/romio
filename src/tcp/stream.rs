@@ -1,13 +1,13 @@
 use std::fmt;
 use std::io;
 use std::mem;
-use std::net::{SocketAddr, Shutdown};
+use std::net::{Shutdown, SocketAddr};
 use std::pin::Pin;
 use std::time::Duration;
 
-use futures::{ready, Future, Poll};
 use futures::io::{AsyncRead, AsyncWrite};
 use futures::task::LocalWaker;
+use futures::{ready, Future, Poll};
 use iovec::IoVec;
 use mio;
 
@@ -83,9 +83,7 @@ impl TcpStream {
     ///
     /// * `ready` includes writable.
     /// * called from outside of a task context.
-    pub fn poll_read_ready(&self, lw: &LocalWaker)
-        -> Poll<io::Result<mio::Ready>>
-    {
+    pub fn poll_read_ready(&self, lw: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
         self.io.poll_read_ready(lw)
     }
 
@@ -256,9 +254,11 @@ impl AsyncRead for TcpStream {
         <&TcpStream>::poll_read(&mut &*self, lw, buf)
     }
 
-    fn poll_vectored_read(&mut self, lw: &LocalWaker, vec: &mut [&mut IoVec])
-        -> Poll<io::Result<usize>>
-    {
+    fn poll_vectored_read(
+        &mut self,
+        lw: &LocalWaker,
+        vec: &mut [&mut IoVec],
+    ) -> Poll<io::Result<usize>> {
         <&TcpStream>::poll_vectored_read(&mut &*self, lw, vec)
     }
 }
@@ -268,9 +268,7 @@ impl AsyncWrite for TcpStream {
         <&TcpStream>::poll_write(&mut &*self, lw, buf)
     }
 
-    fn poll_vectored_write(&mut self, lw: &LocalWaker, vec: &[&IoVec])
-        -> Poll<io::Result<usize>>
-    {
+    fn poll_vectored_write(&mut self, lw: &LocalWaker, vec: &[&IoVec]) -> Poll<io::Result<usize>> {
         <&TcpStream>::poll_vectored_write(&mut &*self, lw, vec)
     }
 
@@ -290,9 +288,11 @@ impl<'a> AsyncRead for &'a TcpStream {
         (&self.io).poll_read(lw, buf)
     }
 
-    fn poll_vectored_read(&mut self, lw: &LocalWaker, bufs: &mut [&mut IoVec])
-        -> Poll<io::Result<usize>>
-    {
+    fn poll_vectored_read(
+        &mut self,
+        lw: &LocalWaker,
+        bufs: &mut [&mut IoVec],
+    ) -> Poll<io::Result<usize>> {
         ready!(self.poll_read_ready(lw)?);
 
         let r = self.io.get_ref().read_bufs(bufs);
@@ -311,9 +311,7 @@ impl<'a> AsyncWrite for &'a TcpStream {
         (&self.io).poll_write(lw, buf)
     }
 
-    fn poll_vectored_write(&mut self, lw: &LocalWaker, bufs: &[&IoVec])
-        -> Poll<io::Result<usize>>
-    {
+    fn poll_vectored_write(&mut self, lw: &LocalWaker, bufs: &[&IoVec]) -> Poll<io::Result<usize>> {
         ready!(self.poll_write_ready(lw)?);
 
         let r = self.io.get_ref().write_bufs(bufs);
@@ -322,7 +320,7 @@ impl<'a> AsyncWrite for &'a TcpStream {
             self.io.clear_write_ready(lw)?;
         }
 
-        return Poll::Ready(r)
+        return Poll::Ready(r);
     }
 
     fn poll_flush(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
@@ -350,7 +348,8 @@ impl Future for ConnectFuture {
 
 impl ConnectFutureState {
     fn poll_inner<F>(&mut self, f: F) -> Poll<io::Result<TcpStream>>
-        where F: FnOnce(&mut PollEvented<mio::net::TcpStream>) -> Poll<io::Result<mio::Ready>>
+    where
+        F: FnOnce(&mut PollEvented<mio::net::TcpStream>) -> Poll<io::Result<mio::Ready>>,
     {
         {
             let stream = match *self {
@@ -360,7 +359,7 @@ impl ConnectFutureState {
                         ConnectFutureState::Error(e) => e,
                         _ => panic!(),
                     };
-                    return Poll::Ready(Err(e))
+                    return Poll::Ready(Err(e));
                 }
                 ConnectFutureState::Empty => panic!("can't poll TCP stream twice"),
             };
@@ -372,11 +371,11 @@ impl ConnectFutureState {
             //
             // If all that succeeded then we ship everything on up.
             if let Poll::Pending = f(&mut stream.io)? {
-                return Poll::Pending
+                return Poll::Pending;
             }
 
             if let Some(e) = stream.io.get_ref().take_error()? {
-                return Poll::Ready(Err(e))
+                return Poll::Ready(Err(e));
             }
         }
 
@@ -397,8 +396,8 @@ impl Future for ConnectFutureState {
 
 #[cfg(unix)]
 mod sys {
-    use std::os::unix::prelude::*;
     use super::TcpStream;
+    use std::os::unix::prelude::*;
 
     impl AsRawFd for TcpStream {
         fn as_raw_fd(&self) -> RawFd {

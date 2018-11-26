@@ -16,12 +16,12 @@
 //! [`UdpFramed`]: struct.UdpFramed.html
 //! [`framed`]: struct.UdpSocket.html#method.framed
 
-use std::io;
-use std::net::{SocketAddr, Ipv4Addr, Ipv6Addr};
 use std::fmt;
+use std::io;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 
-use futures::{Poll, ready};
 use futures::task::LocalWaker;
+use futures::{ready, Poll};
 use mio;
 
 use crate::reactor::PollEvented;
@@ -35,8 +35,7 @@ impl UdpSocket {
     /// This function will create a new UDP socket and attempt to bind it to
     /// the `addr` provided.
     pub fn bind(addr: &SocketAddr) -> io::Result<UdpSocket> {
-        mio::net::UdpSocket::bind(addr)
-            .map(UdpSocket::new)
+        mio::net::UdpSocket::bind(addr).map(UdpSocket::new)
     }
 
     fn new(socket: mio::net::UdpSocket) -> UdpSocket {
@@ -66,7 +65,12 @@ impl UdpSocket {
     /// # Panics
     ///
     /// This function will panic if called from outside of a task context.
-    pub fn poll_send_to(&mut self, lw: &LocalWaker, buf: &[u8], target: &SocketAddr) -> Poll<io::Result<usize>> {
+    pub fn poll_send_to(
+        &mut self,
+        lw: &LocalWaker,
+        buf: &[u8],
+        target: &SocketAddr,
+    ) -> Poll<io::Result<usize>> {
         ready!(self.io.poll_write_ready(lw)?);
 
         match self.io.get_ref().send_to(buf, target) {
@@ -86,7 +90,11 @@ impl UdpSocket {
     ///
     /// This function will panic if called outside the context of a future's
     /// task.
-    pub fn poll_recv_from(&mut self, lw: &LocalWaker, buf: &mut [u8]) -> Poll<io::Result<(usize, SocketAddr)>> {
+    pub fn poll_recv_from(
+        &mut self,
+        lw: &LocalWaker,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<(usize, SocketAddr)>> {
         ready!(self.io.poll_read_ready(lw)?);
 
         match self.io.get_ref().recv_from(buf) {
@@ -228,9 +236,7 @@ impl UdpSocket {
     /// address of the local interface with which the system should join the
     /// multicast group. If it's equal to `INADDR_ANY` then an appropriate
     /// interface is chosen by the system.
-    pub fn join_multicast_v4(&self,
-                             multiaddr: &Ipv4Addr,
-                             interface: &Ipv4Addr) -> io::Result<()> {
+    pub fn join_multicast_v4(&self, multiaddr: &Ipv4Addr, interface: &Ipv4Addr) -> io::Result<()> {
         self.io.get_ref().join_multicast_v4(multiaddr, interface)
     }
 
@@ -239,9 +245,7 @@ impl UdpSocket {
     /// This function specifies a new multicast group for this socket to join.
     /// The address must be a valid multicast address, and `interface` is the
     /// index of the interface to join/leave (or 0 to indicate any interface).
-    pub fn join_multicast_v6(&self,
-                             multiaddr: &Ipv6Addr,
-                             interface: u32) -> io::Result<()> {
+    pub fn join_multicast_v6(&self, multiaddr: &Ipv6Addr, interface: u32) -> io::Result<()> {
         self.io.get_ref().join_multicast_v6(multiaddr, interface)
     }
 
@@ -250,9 +254,7 @@ impl UdpSocket {
     /// For more information about this option, see [`join_multicast_v4`].
     ///
     /// [`join_multicast_v4`]: #method.join_multicast_v4
-    pub fn leave_multicast_v4(&self,
-                              multiaddr: &Ipv4Addr,
-                              interface: &Ipv4Addr) -> io::Result<()> {
+    pub fn leave_multicast_v4(&self, multiaddr: &Ipv4Addr, interface: &Ipv4Addr) -> io::Result<()> {
         self.io.get_ref().leave_multicast_v4(multiaddr, interface)
     }
 
@@ -261,9 +263,7 @@ impl UdpSocket {
     /// For more information about this option, see [`join_multicast_v6`].
     ///
     /// [`join_multicast_v6`]: #method.join_multicast_v6
-    pub fn leave_multicast_v6(&self,
-                              multiaddr: &Ipv6Addr,
-                              interface: u32) -> io::Result<()> {
+    pub fn leave_multicast_v6(&self, multiaddr: &Ipv6Addr, interface: u32) -> io::Result<()> {
         self.io.get_ref().leave_multicast_v6(multiaddr, interface)
     }
 }
@@ -276,8 +276,8 @@ impl fmt::Debug for UdpSocket {
 
 #[cfg(all(unix))]
 mod sys {
-    use std::os::unix::prelude::*;
     use super::UdpSocket;
+    use std::os::unix::prelude::*;
 
     impl AsRawFd for UdpSocket {
         fn as_raw_fd(&self) -> RawFd {

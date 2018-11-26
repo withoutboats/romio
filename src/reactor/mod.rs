@@ -6,24 +6,24 @@ mod sharded_rwlock;
 // ===== Public re-exports =====
 
 use self::background::Background;
-use self::registration::Registration;
 pub use self::poll_evented::PollEvented;
+use self::registration::Registration;
 
 // ===== Private imports =====
 
 use self::sharded_rwlock::RwLock;
 
-use std::{fmt, usize};
+use std::cell::RefCell;
 use std::io;
 use std::mem;
-use std::cell::RefCell;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst};
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
+use std::{fmt, usize};
 
 use futures::task::{AtomicWaker, LocalWaker};
-use log::{Level, debug, trace, log_enabled};
+use log::{debug, log_enabled, trace, Level};
 use mio::event::Evented;
 use slab::Slab;
 
@@ -88,7 +88,7 @@ struct Inner {
     io_dispatch: RwLock<Slab<ScheduledIo>>,
 
     /// Used to wake up the reactor from a call to `turn`
-    wakeup: mio::SetReadiness
+    wakeup: mio::SetReadiness,
 }
 
 struct ScheduledIo {
@@ -131,10 +131,12 @@ impl Reactor {
         let io = mio::Poll::new()?;
         let wakeup_pair = mio::Registration::new2();
 
-        io.register(&wakeup_pair.0,
-                    TOKEN_WAKEUP,
-                    mio::Ready::readable(),
-                    mio::PollOpt::level())?;
+        io.register(
+            &wakeup_pair.0,
+            TOKEN_WAKEUP,
+            mio::Ready::readable(),
+            mio::PollOpt::level(),
+        )?;
 
         Ok(Reactor {
             events: mio::Events::with_capacity(1024),
@@ -198,9 +200,7 @@ impl Reactor {
     /// Idle is defined as all tasks that have been spawned have completed,
     /// either successfully or with an error.
     fn is_idle(&self) -> bool {
-        self.inner.io_dispatch
-            .read()
-            .is_empty()
+        self.inner.io_dispatch.read().is_empty()
     }
 
     /// Run this reactor on a background thread.
@@ -235,7 +235,10 @@ impl Reactor {
             trace!("event {:?} {:?}", event.readiness(), event.token());
 
             if token == TOKEN_WAKEUP {
-                self.inner.wakeup.set_readiness(mio::Ready::empty()).unwrap();
+                self.inner
+                    .wakeup
+                    .set_readiness(mio::Ready::empty())
+                    .unwrap();
             } else {
                 self.dispatch(token, event.readiness());
             }
@@ -243,10 +246,12 @@ impl Reactor {
 
         if let Some(start) = start {
             let dur = start.elapsed();
-            trace!("loop process - {} events, {}.{:03}s",
-                   events,
-                   dur.as_secs(),
-                   dur.subsec_nanos() / 1_000_000);
+            trace!(
+                "loop process - {} events, {}.{:03}s",
+                events,
+                dur.as_secs(),
+                dur.subsec_nanos() / 1_000_000
+            );
         }
 
         Ok(())
@@ -351,11 +356,9 @@ impl HandlePriv {
     ///
     /// Returns `Err` if no handle is found.
     pub(crate) fn try_current() -> io::Result<HandlePriv> {
-        CURRENT_REACTOR.with(|current| {
-            match *current.borrow() {
-                Some(ref handle) => Ok(handle.clone()),
-                None => HandlePriv::fallback(),
-            }
+        CURRENT_REACTOR.with(|current| match *current.borrow() {
+            Some(ref handle) => Ok(handle.clone()),
+            None => HandlePriv::fallback(),
         })
     }
 
@@ -371,8 +374,12 @@ impl HandlePriv {
         if fallback == 0 {
             let reactor = match Reactor::new() {
                 Ok(reactor) => reactor,
-                Err(_) => return Err(io::Error::new(io::ErrorKind::Other,
-                                                    "failed to create reactor")),
+                Err(_) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "failed to create reactor",
+                    ))
+                }
             };
 
             // If we successfully set ourselves as the actual fallback then we
@@ -432,9 +439,7 @@ impl HandlePriv {
     }
 
     fn into_usize(self) -> usize {
-        unsafe {
-            mem::transmute::<Weak<Inner>, usize>(self.inner)
-        }
+        unsafe { mem::transmute::<Weak<Inner>, usize>(self.inner) }
     }
 
     unsafe fn from_usize(val: usize) -> HandlePriv {
@@ -459,17 +464,18 @@ impl Inner {
     /// Register an I/O resource with the reactor.
     ///
     /// The registration token is returned.
-    fn add_source(&self, source: &dyn Evented)
-        -> io::Result<usize>
-    {
+    fn add_source(&self, source: &dyn Evented) -> io::Result<usize> {
         // Get an ABA guard value
         let aba_guard = self.next_aba_guard.fetch_add(1 << TOKEN_SHIFT, Relaxed);
 
         let mut io_dispatch = self.io_dispatch.write();
 
         if io_dispatch.len() == MAX_SOURCES {
-            return Err(io::Error::new(io::ErrorKind::Other, "reactor at max \
-                                      registered I/O resources"));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "reactor at max \
+                 registered I/O resources",
+            ));
         }
 
         // Acquire a write lock
@@ -480,10 +486,12 @@ impl Inner {
             writer: AtomicWaker::new(),
         });
 
-        self.io.register(source,
-                         mio::Token(aba_guard | key),
-                         mio::Ready::all(),
-                         mio::PollOpt::edge())?;
+        self.io.register(
+            source,
+            mio::Token(aba_guard | key),
+            mio::Ready::all(),
+            mio::PollOpt::edge(),
+        )?;
 
         Ok(key)
     }
@@ -544,8 +552,8 @@ impl Direction {
 
 #[cfg(unix)]
 mod platform {
-    use mio::Ready;
     use mio::unix::UnixReady;
+    use mio::Ready;
 
     pub fn hup() -> Ready {
         UnixReady::hup().into()

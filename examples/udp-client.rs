@@ -52,8 +52,9 @@ fn main() {
         "0.0.0.0:0"
     } else {
         "[::]:0"
-    }.parse()
-        .unwrap();
+    }
+    .parse()
+    .unwrap();
     let socket = UdpSocket::bind(&local_addr).unwrap();
     const MAX_DATAGRAM_SIZE: usize = 65_507;
     let processing = socket
