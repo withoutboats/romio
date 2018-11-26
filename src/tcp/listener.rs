@@ -60,6 +60,18 @@ impl TcpListener {
     /// to this listener. The port allocated can be queried via the
     /// [`local_addr`] method.
     ///
+    /// ## Examples
+    /// Create a TCP listener bound to 127.0.0.1:80:
+    ///
+    /// ```rust
+    /// use romio::tcp::TcpListener;
+    ///
+    /// #fn main () -> Result<(), Box<dyn std::error::Error>> {
+    /// let socket_addr = "127.0.0.1:80".parse()?;
+    /// let listener = TcpListener::bind(socket_addr)?;
+    /// # Ok(())}
+    /// ```
+    ///
     /// [`local_addr`]: #method.local_addr
     pub fn bind(addr: &SocketAddr) -> io::Result<TcpListener> {
         let l = mio::net::TcpListener::bind(addr)?;
