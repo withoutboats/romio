@@ -14,8 +14,10 @@
 use std::fmt;
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::pin::Pin;
 
 use futures::task::LocalWaker;
+use futures::Future;
 use futures::{ready, Poll};
 use mio;
 
@@ -25,6 +27,7 @@ use crate::reactor::PollEvented;
 pub struct UdpSocket {
     io: PollEvented<mio::net::UdpSocket>,
 }
+
 
 impl UdpSocket {
     /// Creates a UDP socket from the given address.
@@ -40,6 +43,12 @@ impl UdpSocket {
     /// Returns the local address that this socket is bound to.
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().local_addr()
+    }
+
+    /// Sends data on the socket to the given address. On success, returns the
+    /// number of bytes written.
+    pub fn send_to<'a, 'b>(&'a mut self, buf: &'b [u8], target: &'b SocketAddr) -> SendTo<'a, 'b> {
+        SendTo { buf, target, socket: self }
     }
 
     /// Sends data on the socket to the given address. On success, returns the
@@ -75,6 +84,10 @@ impl UdpSocket {
 
     /// Receives data from the socket. On success, returns the number of bytes
     /// read and the address from whence the data came.
+    pub fn recv_from<'a, 'b>(&'a mut self, buf: &'b mut [u8]) -> RecvFrom<'a, 'b> {
+        RecvFrom { buf, socket: self }
+    }
+
     ///
     /// If the socket is not ready for receiving, the method returns
     /// `Ok(Poll::Pending)` and arranges for the current task to receive a
@@ -268,5 +281,38 @@ mod sys {
         fn as_raw_fd(&self) -> RawFd {
             self.io.get_ref().as_raw_fd()
         }
+    }
+}
+
+/// The future returned by `UdpSocket::send_to`
+#[derive(Debug)]
+pub struct SendTo<'a, 'b> {
+    socket: &'a mut UdpSocket,
+    buf: &'b [u8],
+    target: &'b SocketAddr,
+}
+
+impl<'a, 'b> Future for SendTo<'a, 'b> {
+    type Output = io::Result<usize>;
+
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        let SendTo { socket, buf, target } = &mut *self;
+        socket.poll_send_to(lw, buf, target)
+    }
+}
+
+/// The future returned by `UdpSocket::recv_from`
+#[derive(Debug)]
+pub struct RecvFrom<'a, 'b> {
+    socket: &'a mut UdpSocket,
+    buf: &'b mut [u8],
+}
+
+impl<'a, 'b> Future for RecvFrom<'a, 'b> {
+    type Output = io::Result<(usize, SocketAddr)>;
+
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        let RecvFrom { socket, buf } = &mut *self;
+        socket.poll_recv_from(lw, buf)
     }
 }
