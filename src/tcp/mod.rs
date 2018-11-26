@@ -19,17 +19,17 @@
 //! # Example
 //!
 //! ```no_run
-//! #![feature(async_await)]
-//!
+//! #![feature(async_await, await_macro, futures_api)]
 //! use romio::tcp::{TcpListener, TcpStream};
 //! use futures::prelude::*;
 //!
-//! async fn handle_client(stream: TcpStream) {
+//! async fn handle_client(mut stream: TcpStream) {
 //!     await!(stream.write_all(b"Hello, client!"));
 //! }
 //!
-//! async fn listen() -> io::Result<()> {
-//!     let listener = TcpListener::bind("127.0.0.1:80")?;
+//! async fn listen() -> Result<(), Box<dyn std::error::Error + 'static>> {
+//!     let socket_addr = "127.0.0.1:80".parse()?;
+//!     let listener = TcpListener::bind(&socket_addr)?;
 //!     let mut incoming = listener.incoming();
 //!
 //!     // accept connections and process them serially
