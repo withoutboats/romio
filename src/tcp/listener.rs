@@ -26,17 +26,17 @@ use crate::reactor::PollEvented;
 /// # Examples
 ///
 /// ```no_run
-/// #![feature(async_await)]
-///
+/// #![feature(async_await, await_macro, futures_api)]
 /// use romio::tcp::{TcpListener, TcpStream};
 /// use futures::prelude::*;
 ///
-/// async fn handle_client(stream: TcpStream) {
+/// async fn handle_client(mut stream: TcpStream) {
 ///     await!(stream.write_all(b"Hello, client!"));
 /// }
 ///
-/// async fn listen() -> io::Result<()> {
-///     let listener = TcpListener::bind("127.0.0.1:80")?;
+/// async fn listen() -> Result<(), Box<dyn std::error::Error + 'static>> {
+///     let socket_addr = "127.0.0.1:80".parse()?;
+///     let listener = TcpListener::bind(&socket_addr)?;
 ///     let mut incoming = listener.incoming();
 ///
 ///     // accept connections and process them serially
@@ -59,6 +59,18 @@ impl TcpListener {
     /// Binding with a port number of 0 will request that the OS assigns a port
     /// to this listener. The port allocated can be queried via the
     /// [`local_addr`] method.
+    ///
+    /// ## Examples
+    /// Create a TCP listener bound to 127.0.0.1:80:
+    ///
+    /// ```rust,no_run
+    /// use romio::tcp::TcpListener;
+    ///
+    /// # fn main () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let socket_addr = "127.0.0.1:80".parse()?;
+    /// let listener = TcpListener::bind(&socket_addr)?;
+    /// # Ok(())}
+    /// ```
     ///
     /// [`local_addr`]: #method.local_addr
     pub fn bind(addr: &SocketAddr) -> io::Result<TcpListener> {

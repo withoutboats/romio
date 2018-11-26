@@ -58,6 +58,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```no_run
+    /// #![feature(async_await, await_macro, futures_api)]
     /// use std::io;
     /// use romio::tcp::TcpStream;
     ///
