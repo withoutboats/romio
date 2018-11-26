@@ -22,12 +22,13 @@
 //! #![feature(async_await)]
 //!
 //! use romio::tcp::{TcpListener, TcpStream};
+//! use futures::prelude::*;
 //!
 //! async fn handle_client(stream: TcpStream) {
-//!     // ...
+//!     await!(stream.write_all(b"Hello, client!"));
 //! }
 //!
-//! async fn main() -> io::Result<()> {
+//! async fn listen() -> io::Result<()> {
 //!     let listener = TcpListener::bind("127.0.0.1:80")?;
 //!     let mut incoming = listener.incoming();
 //!

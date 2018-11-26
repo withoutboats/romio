@@ -13,10 +13,16 @@ use mio;
 
 use crate::reactor::PollEvented;
 
-/// An I/O object representing a TCP stream connected to a remote endpoint.
+/// A TCP stream between a local and a remote socket.
 ///
-/// A TCP stream can either be created by connecting to an endpoint, via the
+/// A `TcpStream` can either be created by connecting to an endpoint, via the
 /// [`connect`] method, or by [accepting] a connection from a [listener].
+/// It can be read or written to using the `AsyncRead`, `AsyncWrite`, and related
+/// extension traits in `futures::io`.
+///
+/// The connection will be closed when the value is dropped. The reading and writing
+/// portions of the connection can also be shut down individually with the [`shutdown`]
+/// method.
 ///
 /// [`connect`]: struct.TcpStream.html#method.connect
 /// [accepting]: struct.TcpListener.html#method.accept
@@ -25,7 +31,7 @@ pub struct TcpStream {
     io: PollEvented<mio::net::TcpStream>,
 }
 
-/// Future returned by `TcpStream::connect` which will resolve to a `TcpStream`
+/// The future returned by `TcpStream::connect`, which will resolve to a `TcpStream`
 /// when the stream is connected.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
@@ -48,6 +54,18 @@ impl TcpStream {
     /// the `addr` provided. The returned future will be resolved once the
     /// stream has successfully connected, or it will return an error if one
     /// occurs.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::io;
+    /// use romio::tcp::TcpStream;
+    ///
+    /// async fn connect_localhost() -> io::Result<TcpStream> {
+    ///     let addr = "127.0.0.1".parse().unwrap();
+    ///     await!(TcpStream::connect(&addr))
+    /// }
+    /// ```
     pub fn connect(addr: &SocketAddr) -> ConnectFuture {
         use self::ConnectFutureState::*;
 
@@ -64,25 +82,13 @@ impl TcpStream {
         TcpStream { io }
     }
 
-    /// Check the TCP stream's read readiness state.
+    /// Poll the TCP stream's readiness for reading.
     ///
-    /// The mask argument allows specifying what readiness to notify on. This
-    /// can be any value, including platform specific readiness, **except**
-    /// `writable`. HUP is always implicitly included on platforms that support
-    /// it.
+    /// If the stream is not ready for a read then the method will return `Poll::Pending`
+    /// and schedule the current task for wakeup upon read-readiness.
     ///
-    /// If the resource is not ready for a read then `Poll::Pending` is
-    /// returned and the current task is notified once a new event is received.
-    ///
-    /// The stream will remain in a read-ready state until calls to `poll_read`
-    /// return `NotReady`.
-    ///
-    /// # Panics
-    ///
-    /// This function panics if:
-    ///
-    /// * `ready` includes writable.
-    /// * called from outside of a task context.
+    /// Once the stream is ready for reading, it will remain so until all available
+    /// bytes have been extracted (via `futures::io::AsyncRead` and related traits).
     pub fn poll_read_ready(&self, lw: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
         self.io.poll_read_ready(lw)
     }
