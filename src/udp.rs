@@ -47,6 +47,24 @@ impl UdpSocket {
 
     /// Sends data on the socket to the given address. On success, returns the
     /// number of bytes written.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// #![feature(futures_api, async_await, await_macro)]
+    /// use romio::udp::UdpSocket;
+    ///
+    /// # fn get_some_data() -> Vec<u8> { unimplemented!() }
+    /// # async fn send_some_data() -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:0".parse()?;
+    /// # let target = "1.2.3.4:1337".parse()?;
+    /// let mut socket = UdpSocket::bind(&addr)?;
+    /// let data = get_some_data();
+    ///
+    /// await!(socket.send_to(&data, &target));
+    /// # Ok(())
+    /// # } 
+    /// ```
     pub fn send_to<'a, 'b>(&'a mut self, buf: &'b [u8], target: &'b SocketAddr) -> SendTo<'a, 'b> {
         SendTo { buf, target, socket: self }
     }
@@ -84,6 +102,27 @@ impl UdpSocket {
 
     /// Receives data from the socket. On success, returns the number of bytes
     /// read and the address from whence the data came.
+    ///
+    /// # Exampes
+    ///
+    /// ```rust,no_run
+    /// #![feature(futures_api, async_await, await_macro)]
+    /// use romio::udp::UdpSocket;
+    ///
+    /// async fn get_some(socket: &mut UdpSocket) -> Vec<u8> {
+    ///     let mut buf = vec![];
+    ///     socket.recv_from(&mut buf);
+    ///     buf
+    /// }
+    ///
+    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let addr = "127.0.0.1:0".parse()?;
+    ///     let mut socket = UdpSocket::bind(&addr)?;
+    ///
+    ///     futures::executor::block_on(get_some(&mut socket));
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn recv_from<'a, 'b>(&'a mut self, buf: &'b mut [u8]) -> RecvFrom<'a, 'b> {
         RecvFrom { buf, socket: self }
     }
