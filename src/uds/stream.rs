@@ -2,9 +2,9 @@ use super::ucred::{self, UCred};
 
 use crate::reactor::PollEvented;
 
-use futures::{Future, Poll, ready};
 use futures::io::{AsyncRead, AsyncWrite};
 use futures::task::LocalWaker;
+use futures::{ready, Future, Poll};
 use iovec::IoVec;
 use mio::Ready;
 
@@ -49,8 +49,7 @@ impl UnixStream {
     where
         P: AsRef<Path>,
     {
-        let res = mio_uds::UnixStream::connect(path)
-            .map(UnixStream::new);
+        let res = mio_uds::UnixStream::connect(path).map(UnixStream::new);
 
         let inner = match res {
             Ok(stream) => State::Waiting(stream),
@@ -123,9 +122,11 @@ impl AsyncRead for UnixStream {
         <&UnixStream>::poll_read(&mut &*self, lw, buf)
     }
 
-    fn poll_vectored_read(&mut self, lw: &LocalWaker, vec: &mut [&mut IoVec])
-        -> Poll<io::Result<usize>>
-    {
+    fn poll_vectored_read(
+        &mut self,
+        lw: &LocalWaker,
+        vec: &mut [&mut IoVec],
+    ) -> Poll<io::Result<usize>> {
         <&UnixStream>::poll_vectored_read(&mut &*self, lw, vec)
     }
 }
@@ -135,9 +136,7 @@ impl AsyncWrite for UnixStream {
         <&UnixStream>::poll_write(&mut &*self, lw, buf)
     }
 
-    fn poll_vectored_write(&mut self, lw: &LocalWaker, vec: &[&IoVec])
-        -> Poll<io::Result<usize>>
-    {
+    fn poll_vectored_write(&mut self, lw: &LocalWaker, vec: &[&IoVec]) -> Poll<io::Result<usize>> {
         <&UnixStream>::poll_vectored_write(&mut &*self, lw, vec)
     }
 
@@ -155,9 +154,11 @@ impl<'a> AsyncRead for &'a UnixStream {
         (&self.io).poll_read(lw, buf)
     }
 
-    fn poll_vectored_read(&mut self, lw: &LocalWaker, bufs: &mut [&mut IoVec])
-        -> Poll<io::Result<usize>>
-    {
+    fn poll_vectored_read(
+        &mut self,
+        lw: &LocalWaker,
+        bufs: &mut [&mut IoVec],
+    ) -> Poll<io::Result<usize>> {
         ready!(self.poll_read_ready(lw)?);
 
         let r = self.io.get_ref().read_bufs(bufs);
@@ -176,9 +177,7 @@ impl<'a> AsyncWrite for &'a UnixStream {
         (&self.io).poll_write(lw, buf)
     }
 
-    fn poll_vectored_write(&mut self, lw: &LocalWaker, bufs: &[&IoVec])
-        -> Poll<io::Result<usize>>
-    {
+    fn poll_vectored_write(&mut self, lw: &LocalWaker, bufs: &[&IoVec]) -> Poll<io::Result<usize>> {
         ready!(self.poll_write_ready(lw)?);
 
         let r = self.io.get_ref().write_bufs(bufs);
@@ -187,7 +186,7 @@ impl<'a> AsyncWrite for &'a UnixStream {
             self.io.clear_write_ready(lw)?;
         }
 
-        return Poll::Ready(r)
+        return Poll::Ready(r);
     }
 
     fn poll_flush(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
@@ -222,7 +221,7 @@ impl Future for ConnectFuture {
                 ready!(stream.io.poll_write_ready(lw)?);
 
                 if let Some(e) = stream.io.get_ref().take_error()? {
-                    return Poll::Ready(Err(e))
+                    return Poll::Ready(Err(e));
                 }
             }
             State::Error(_) => {
@@ -231,8 +230,8 @@ impl Future for ConnectFuture {
                     _ => unreachable!(),
                 };
 
-                return Poll::Ready(Err(e))
-            },
+                return Poll::Ready(Err(e));
+            }
             State::Empty => panic!("can't poll stream twice"),
         }
 

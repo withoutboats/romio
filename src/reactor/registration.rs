@@ -1,13 +1,13 @@
-use super::{HandlePriv, Direction};
+use super::{Direction, HandlePriv};
 
-use futures::Poll;
 use futures::task::LocalWaker;
+use futures::Poll;
 use mio::{self, Evented};
 
-use std::{io, ptr, usize};
 use std::cell::UnsafeCell;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
+use std::{io, ptr, usize};
 
 /// Associates an I/O resource with the reactor instance that drives it.
 ///
@@ -113,7 +113,8 @@ impl Registration {
     ///
     /// If an error is encountered during registration, `Err` is returned.
     pub fn register<T>(&self, io: &T) -> io::Result<bool>
-    where T: Evented,
+    where
+        T: Evented,
     {
         self.register2(io, || HandlePriv::try_current())
     }
@@ -135,7 +136,8 @@ impl Registration {
     ///
     /// `Err` is returned if an error is encountered.
     pub fn deregister<T>(&mut self, io: &T) -> io::Result<()>
-    where T: Evented,
+    where
+        T: Evented,
     {
         // The state does not need to be checked and coordination is not
         // necessary as this function takes `&mut self`. This guarantees a
@@ -148,8 +150,9 @@ impl Registration {
     }
 
     fn register2<T, F>(&self, io: &T, f: F) -> io::Result<bool>
-    where T: Evented,
-          F: Fn() -> io::Result<HandlePriv>,
+    where
+        T: Evented,
+        F: Fn() -> io::Result<HandlePriv>,
     {
         let mut state = self.state.load(SeqCst);
 
@@ -170,7 +173,9 @@ impl Registration {
                     // Create the actual registration
                     let (inner, res) = Inner::new(io, handle);
 
-                    unsafe { *self.inner.get() = Some(inner); }
+                    unsafe {
+                        *self.inner.get() = Some(inner);
+                    }
 
                     // Transition out of the locked state. This acquires the
                     // current value, potentially having a list of tasks that
@@ -252,8 +257,8 @@ impl Registration {
     pub fn poll_read_ready(&self, lw: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
         match self.poll_ready(Some(lw), Direction::Read) {
             Ok(Some(v)) => Poll::Ready(Ok(v)),
-            Ok(None)    => Poll::Pending,
-            Err(e)      => Poll::Ready(Err(e)),
+            Ok(None) => Poll::Pending,
+            Err(e) => Poll::Ready(Err(e)),
         }
     }
 
@@ -266,7 +271,6 @@ impl Registration {
     /// [`poll_read_ready`]: #method.poll_read_ready
     pub fn take_read_ready(&self) -> io::Result<Option<mio::Ready>> {
         self.poll_ready(None, Direction::Read)
-
     }
 
     /// Poll for events on the I/O resource's write readiness stream.
@@ -304,8 +308,8 @@ impl Registration {
     pub fn poll_write_ready(&self, lw: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
         match self.poll_ready(Some(lw), Direction::Write) {
             Ok(Some(v)) => Poll::Ready(Ok(v)),
-            Ok(None)    => Poll::Pending,
-            Err(e)      => Poll::Ready(Err(e)),
+            Ok(None) => Poll::Pending,
+            Err(e) => Poll::Ready(Err(e)),
         }
     }
 
@@ -320,9 +324,11 @@ impl Registration {
         self.poll_ready(None, Direction::Write)
     }
 
-    fn poll_ready(&self, lw: Option<&LocalWaker>, direction: Direction)
-        -> io::Result<Option<mio::Ready>>
-    {
+    fn poll_ready(
+        &self,
+        lw: Option<&LocalWaker>,
+        direction: Direction,
+    ) -> io::Result<Option<mio::Ready>> {
         let mut state = self.state.load(SeqCst);
 
         // Cache the node pointer
@@ -331,8 +337,11 @@ impl Registration {
         loop {
             match state {
                 INIT => {
-                    return Err(io::Error::new(io::ErrorKind::Other, "must call `register`
-                                              before poll_read_ready"));
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "must call `register`
+                                              before poll_read_ready",
+                    ));
                 }
                 READY => {
                     let inner = unsafe { (*self.inner.get()).as_ref().unwrap() };
@@ -390,7 +399,8 @@ unsafe impl Sync for Registration {}
 
 impl Inner {
     fn new<T>(io: &T, handle: HandlePriv) -> (Self, io::Result<()>)
-    where T: Evented,
+    where
+        T: Evented,
     {
         let mut res = Ok(());
 
@@ -408,10 +418,7 @@ impl Inner {
             }
         };
 
-        let inner = Inner {
-            handle,
-            token,
-        };
+        let inner = Inner { handle, token };
 
         (inner, res)
     }
@@ -435,7 +442,10 @@ impl Inner {
 
     fn deregister<E: Evented>(&self, io: &E) -> io::Result<()> {
         if self.token == ERROR {
-            return Err(io::Error::new(io::ErrorKind::Other, "failed to associate with reactor"));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "failed to associate with reactor",
+            ));
         }
 
         let inner = match self.handle.inner() {
@@ -446,11 +456,16 @@ impl Inner {
         inner.deregister_source(io)
     }
 
-    fn poll_ready(&self, lw: Option<&LocalWaker>, direction: Direction)
-        -> io::Result<Option<mio::Ready>>
-    {
+    fn poll_ready(
+        &self,
+        lw: Option<&LocalWaker>,
+        direction: Direction,
+    ) -> io::Result<Option<mio::Ready>> {
         if self.token == ERROR {
-            return Err(io::Error::new(io::ErrorKind::Other, "failed to associate with reactor"));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "failed to associate with reactor",
+            ));
         }
 
         let inner = match self.handle.inner() {
@@ -472,8 +487,8 @@ impl Inner {
         // If HUP were to be cleared when `direction` is `Read`, then when
         // `poll_ready` is called again with a _`direction` of `Write`, the HUP
         // state would not be visible.
-        let mut ready = mask & mio::Ready::from_usize(
-            sched.readiness.fetch_and(!mask_no_hup, SeqCst));
+        let mut ready =
+            mask & mio::Ready::from_usize(sched.readiness.fetch_and(!mask_no_hup, SeqCst));
 
         if ready.is_empty() && lw.is_some() {
             let lw = lw.unwrap();
@@ -484,8 +499,7 @@ impl Inner {
             }
 
             // Try again
-            ready = mask & mio::Ready::from_usize(
-                sched.readiness.fetch_and(!mask_no_hup, SeqCst));
+            ready = mask & mio::Ready::from_usize(sched.readiness.fetch_and(!mask_no_hup, SeqCst));
         }
 
         if ready.is_empty() {

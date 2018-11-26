@@ -1,7 +1,7 @@
 use crate::reactor::PollEvented;
 
-use futures::{Poll, ready};
 use futures::task::LocalWaker;
+use futures::{ready, Poll};
 use mio::Ready;
 use mio_uds;
 
@@ -77,9 +77,11 @@ impl UnixDatagram {
     ///
     /// On success, returns the number of bytes read and the address from
     /// whence the data came.
-    pub fn poll_recv_from(&self, lw: &LocalWaker, buf: &mut [u8])
-        -> Poll<io::Result<(usize, SocketAddr)>>
-    {
+    pub fn poll_recv_from(
+        &self,
+        lw: &LocalWaker,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<(usize, SocketAddr)>> {
         ready!(self.io.poll_read_ready(lw)?);
 
         let r = self.io.get_ref().recv_from(buf);

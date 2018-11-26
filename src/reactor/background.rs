@@ -1,14 +1,14 @@
-use super::{Reactor, Handle};
+use super::{Handle, Reactor};
 
-use futures::{Future, Poll, executor};
-use futures::task::{LocalWaker, AtomicWaker};
+use futures::task::{AtomicWaker, LocalWaker};
+use futures::{executor, Future, Poll};
 use log::debug;
 
 use std::io;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
+use std::sync::Arc;
 use std::thread;
 
 /// Handle to the reactor running on a background thread.
@@ -75,14 +75,10 @@ impl Background {
         let shared2 = shared.clone();
 
         // Start the reactor thread
-        thread::Builder::new()
-            .spawn(move || run(reactor, shared2))?;
+        thread::Builder::new().spawn(move || run(reactor, shared2))?;
 
         Ok(Background {
-            inner: Some(Inner {
-                handle,
-                shared,
-            }),
+            inner: Some(Inner { handle, shared }),
         })
     }
 
@@ -115,7 +111,7 @@ impl Future for Shutdown {
         self.inner.shared.shutdown_task.register(lw);
 
         if !self.inner.is_shutdown() {
-            return Poll::Pending
+            return Poll::Pending;
         }
 
         Poll::Ready(Ok(()))
@@ -139,7 +135,9 @@ impl Inner {
                 return;
             }
 
-            let act = self.shared.shutdown
+            let act = self
+                .shared
+                .shutdown
                 .compare_and_swap(curr, SHUTDOWN_NOW, SeqCst);
 
             if act == curr {

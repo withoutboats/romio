@@ -2,8 +2,8 @@ use super::UnixStream;
 
 use crate::reactor::PollEvented;
 
-use futures::{Poll, Stream, ready};
 use futures::task::LocalWaker;
+use futures::{ready, Poll, Stream};
 use mio_uds;
 
 use std::fmt;
@@ -55,9 +55,7 @@ impl UnixListener {
         Poll::Ready(Ok((UnixStream::new(io), addr)))
     }
 
-    fn poll_accept_std(&self, lw: &LocalWaker)
-        -> Poll<io::Result<(net::UnixStream, SocketAddr)>>
-    {
+    fn poll_accept_std(&self, lw: &LocalWaker) -> Poll<io::Result<(net::UnixStream, SocketAddr)>> {
         ready!(self.io.poll_read_ready(lw)?);
 
         match self.io.get_ref().accept_std() {
