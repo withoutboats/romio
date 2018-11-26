@@ -134,6 +134,22 @@ impl TcpStream {
     }
 
     /// Returns the remote address that this stream is connected to.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    /// use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// let expected = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080);
+    /// assert_eq!(stream.peer_addr()?, SocketAddr::V4(expected));
+    /// # Ok(())}
+    /// ```
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().peer_addr()
     }
@@ -143,6 +159,21 @@ impl TcpStream {
     /// This function will cause all pending and future I/O on the specified
     /// portions to return immediately with an appropriate value (see the
     /// documentation of `Shutdown`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    /// use std::net::Shutdown;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.shutdown(Shutdown::Both)?;
+    /// # Ok(())}
+    /// ```
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         self.io.get_ref().shutdown(how)
     }
@@ -152,6 +183,21 @@ impl TcpStream {
     /// For more information about this option, see [`set_nodelay`].
     ///
     /// [`set_nodelay`]: #method.set_nodelay
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_nodelay(true)?;
+    /// assert_eq!(stream.nodelay()?, true);
+    /// # Ok(())}
+    /// ```
     pub fn nodelay(&self) -> io::Result<bool> {
         self.io.get_ref().nodelay()
     }
@@ -163,6 +209,20 @@ impl TcpStream {
     /// small amount of data. When not set, data is buffered until there is a
     /// sufficient amount to send out, thereby avoiding the frequent sending of
     /// small packets.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_nodelay(true)?;
+    /// # Ok(())}
+    /// ```
     pub fn set_nodelay(&self, nodelay: bool) -> io::Result<()> {
         self.io.get_ref().set_nodelay(nodelay)
     }
@@ -172,6 +232,21 @@ impl TcpStream {
     /// For more information about this option, see [`set_recv_buffer_size`].
     ///
     /// [`set_recv_buffer_size`]: #tymethod.set_recv_buffer_size
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_recv_buffer_size(100);
+    /// assert_eq!(stream.recv_buffer_size()?, 100);
+    /// # Ok(())}
+    /// ```
     pub fn recv_buffer_size(&self) -> io::Result<usize> {
         self.io.get_ref().recv_buffer_size()
     }
@@ -180,6 +255,20 @@ impl TcpStream {
     ///
     /// Changes the size of the operating system's receive buffer associated
     /// with the socket.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_recv_buffer_size(100);
+    /// # Ok(())}
+    /// ```
     pub fn set_recv_buffer_size(&self, size: usize) -> io::Result<()> {
         self.io.get_ref().set_recv_buffer_size(size)
     }
@@ -189,6 +278,21 @@ impl TcpStream {
     /// For more information about this option, see [`set_send_buffer`].
     ///
     /// [`set_send_buffer`]: #tymethod.set_send_buffer
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_send_buffer_size(100);
+    /// assert_eq!(stream.send_buffer_size()?, 100);
+    /// # Ok(())}
+    /// ```
     pub fn send_buffer_size(&self) -> io::Result<usize> {
         self.io.get_ref().send_buffer_size()
     }
@@ -197,6 +301,20 @@ impl TcpStream {
     ///
     /// Changes the size of the operating system's send buffer associated with
     /// the socket.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_send_buffer_size(100);
+    /// # Ok(())}
+    /// ```
     pub fn set_send_buffer_size(&self, size: usize) -> io::Result<()> {
         self.io.get_ref().set_send_buffer_size(size)
     }
@@ -207,6 +325,22 @@ impl TcpStream {
     /// For more information about this option, see [`set_keepalive`].
     ///
     /// [`set_keepalive`]: #tymethod.set_keepalive
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    /// use std::time::Duration;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_keepalive(Some(Duration::from_secs(60)))?;
+    /// assert_eq!(stream.keepalive()?, Some(Duration::from_secs(60)));
+    /// # Ok(())}
+    /// ```
     pub fn keepalive(&self) -> io::Result<Option<Duration>> {
         self.io.get_ref().keepalive()
     }
@@ -223,6 +357,21 @@ impl TcpStream {
     ///
     /// Some platforms specify this value in seconds, so sub-second
     /// specifications may be omitted.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    /// use std::time::Duration;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_keepalive(Some(Duration::from_secs(60)))?;
+    /// # Ok(())}
+    /// ```
     pub fn set_keepalive(&self, keepalive: Option<Duration>) -> io::Result<()> {
         self.io.get_ref().set_keepalive(keepalive)
     }
@@ -232,6 +381,21 @@ impl TcpStream {
     /// For more information about this option, see [`set_ttl`].
     ///
     /// [`set_ttl`]: #tymethod.set_ttl
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_ttl(100)?;
+    /// assert_eq!(stream.ttl()?, 100);
+    /// # Ok(())}
+    /// ```
     pub fn ttl(&self) -> io::Result<u32> {
         self.io.get_ref().ttl()
     }
@@ -240,6 +404,20 @@ impl TcpStream {
     ///
     /// This value sets the time-to-live field that is used in every packet sent
     /// from this socket.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_ttl(100)?;
+    /// # Ok(())}
+    /// ```
     pub fn set_ttl(&self, ttl: u32) -> io::Result<()> {
         self.io.get_ref().set_ttl(ttl)
     }
@@ -250,6 +428,22 @@ impl TcpStream {
     /// For more information about this option, see [`set_linger`].
     ///
     /// [`set_linger`]: #tymethod.set_linger
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    /// use std::time::Duration;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_linger(Some(Duration::from_millis(100)))?;
+    /// assert_eq!(stream.linger()?, Some(Duration::from_millis(100)));
+    /// # Ok(())}
+    /// ```
     pub fn linger(&self) -> io::Result<Option<Duration>> {
         self.io.get_ref().linger()
     }
@@ -265,6 +459,21 @@ impl TcpStream {
     /// If `SO_LINGER` is not specified, and the stream is closed, the system
     /// handles the call in a way that allows the process to continue as quickly
     /// as possible.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    /// use std::time::Duration;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// stream.set_linger(Some(Duration::from_millis(100)))?;
+    /// # Ok(())}
+    /// ```
     pub fn set_linger(&self, dur: Option<Duration>) -> io::Result<()> {
         self.io.get_ref().set_linger(dur)
     }
