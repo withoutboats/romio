@@ -113,6 +113,22 @@ impl TcpStream {
     }
 
     /// Returns the local address that this stream is bound to.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::tcp::TcpStream;
+    /// use std::net::{IpAddr, Ipv4Addr};
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let addr = "127.0.0.1:8080".parse()?;
+    /// let stream = await!(TcpStream::connect(&addr))?;
+    ///
+    /// let expected = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+    /// assert_eq!(stream.local_addr()?.ip(), expected);
+    /// # Ok(())}
+    /// ```
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().local_addr()
     }
