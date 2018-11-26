@@ -1,7 +1,7 @@
 //! *O Romio, Romio, wherefore art thou Romio?*<br/>
 //! *Deny thy father and refuse thy name;*<br/>
 //! *Or if thou wilt not, be but sworn my love*<br/>
-//! *And I'll no longer be asynchronous*
+//! *And I'll no longer be so synchronous.*
 //!
 //! # Asynchronous networking bindings for TCP, UDP, and UDS
 //!
