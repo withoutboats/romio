@@ -23,8 +23,8 @@
 //! use romio::tcp::{TcpListener, TcpStream};
 //! use futures::prelude::*;
 //!
-//! async fn handle_client(mut stream: TcpStream) {
-//!     await!(stream.write_all(b"Hello, client!"));
+//! async fn say_hello(mut stream: TcpStream) {
+//!     await!(stream.write_all(b"Shall I hear more, or shall I speak at this?!"));
 //! }
 //!
 //! async fn listen() -> Result<(), Box<dyn std::error::Error + 'static>> {
@@ -34,7 +34,7 @@
 //!
 //!     // accept connections and process them serially
 //!     while let Some(stream) = await!(incoming.next()) {
-//!         await!(handle_client(stream?));
+//!         await!(say_hello(stream?));
 //!     }
 //!     Ok(())
 //! }
