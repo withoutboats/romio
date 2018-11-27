@@ -65,7 +65,7 @@ impl UnixStream {
     /// communicating back and forth between one another. Each socket will be
     /// associated with the event loop whose handle is also provided.
     pub fn pair() -> io::Result<(UnixStream, UnixStream)> {
-        let (a, b) = r#try!(mio_uds::UnixStream::pair());
+        let (a, b) = mio_uds::UnixStream::pair()?;
         let a = UnixStream::new(a);
         let b = UnixStream::new(b);
 
