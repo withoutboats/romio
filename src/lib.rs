@@ -27,7 +27,7 @@
 //! }
 //!
 //! async fn listen() -> Result<(), Box<dyn std::error::Error + 'static>> {
-//!     let socket_addr = "127.0.0.1:80".parse()?;
+//!     let socket_addr = "127.0.0.1:8080".parse()?;
 //!     let listener = TcpListener::bind(&socket_addr)?;
 //!     let mut incoming = listener.incoming();
 //!
@@ -35,6 +35,23 @@
 //!     while let Some(stream) = await!(incoming.next()) {
 //!         await!(say_hello(stream?));
 //!     }
+//!     Ok(())
+//! }
+//! ```
+//! __TCP Client__
+//! ```rust,no_run
+//! #![feature(async_await, await_macro, futures_api)]
+//! use std::error::Error;
+//! use futures::prelude::*;
+//! use romio::tcp::{TcpListener, TcpStream};
+//!
+//! async fn receive_sonnet() -> Result<(), Box<dyn Error + 'static>> {
+//!     let socket_addr = "127.0.0.1:8080".parse()?;
+//!     let mut buffer = vec![];
+//!     let mut stream = await!(TcpStream::connect(&socket_addr))?;
+//!
+//!     await!(stream.read(&mut buffer))?;
+//!     println!("{:?}", buffer);
 //!     Ok(())
 //! }
 //! ```
