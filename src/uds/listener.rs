@@ -20,10 +20,7 @@ pub struct UnixListener {
 
 impl UnixListener {
     /// Creates a new `UnixListener` bound to the specified path.
-    pub fn bind<P>(path: P) -> io::Result<UnixListener>
-    where
-        P: AsRef<Path>,
-    {
+    pub fn bind(path: impl AsRef<Path>) -> io::Result<UnixListener> {
         let listener = mio_uds::UnixListener::bind(path)?;
         let io = PollEvented::new(listener);
         Ok(UnixListener { io })

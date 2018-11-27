@@ -45,10 +45,7 @@ impl UnixStream {
     /// This function will create a new Unix socket and connect to the path
     /// specified, associating the returned stream with the default event loop's
     /// handle.
-    pub fn connect<P>(path: P) -> ConnectFuture
-    where
-        P: AsRef<Path>,
-    {
+    pub fn connect(path: impl AsRef<Path>) -> ConnectFuture {
         let res = mio_uds::UnixStream::connect(path).map(UnixStream::new);
 
         let inner = match res {

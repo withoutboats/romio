@@ -112,10 +112,7 @@ impl Registration {
     /// `Ok(false)` is returned.
     ///
     /// If an error is encountered during registration, `Err` is returned.
-    pub fn register<T>(&self, io: &T) -> io::Result<bool>
-    where
-        T: Evented,
-    {
+    pub fn register(&self, io: &impl Evented) -> io::Result<bool> {
         self.register2(io, || HandlePriv::try_current())
     }
 
@@ -135,10 +132,7 @@ impl Registration {
     /// no longer result in notifications getting sent for this registration.
     ///
     /// `Err` is returned if an error is encountered.
-    pub fn deregister<T>(&mut self, io: &T) -> io::Result<()>
-    where
-        T: Evented,
-    {
+    pub fn deregister(&mut self, io: &impl Evented) -> io::Result<()> {
         // The state does not need to be checked and coordination is not
         // necessary as this function takes `&mut self`. This guarantees a
         // single thread is accessing the instance.
@@ -398,10 +392,7 @@ unsafe impl Sync for Registration {}
 // ===== impl Inner =====
 
 impl Inner {
-    fn new<T>(io: &T, handle: HandlePriv) -> (Self, io::Result<()>)
-    where
-        T: Evented,
-    {
+    fn new(io: &impl Evented, handle: HandlePriv) -> (Self, io::Result<()>) {
         let mut res = Ok(());
 
         let token = match handle.inner() {

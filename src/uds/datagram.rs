@@ -19,10 +19,7 @@ pub struct UnixDatagram {
 
 impl UnixDatagram {
     /// Creates a new `UnixDatagram` bound to the specified path.
-    pub fn bind<P>(path: P) -> io::Result<UnixDatagram>
-    where
-        P: AsRef<Path>,
-    {
+    pub fn bind(path: impl AsRef<Path>) -> io::Result<UnixDatagram> {
         let socket = mio_uds::UnixDatagram::bind(path)?;
         Ok(UnixDatagram::new(socket))
     }
@@ -97,10 +94,12 @@ impl UnixDatagram {
     /// Sends data on the socket to the specified address.
     ///
     /// On success, returns the number of bytes written.
-    pub fn poll_send_to<P>(&self, lw: &LocalWaker, buf: &[u8], path: P) -> Poll<io::Result<usize>>
-    where
-        P: AsRef<Path>,
-    {
+    pub fn poll_send_to(
+        &self,
+        lw: &LocalWaker,
+        buf: &[u8],
+        path: impl AsRef<Path>,
+    ) -> Poll<io::Result<usize>> {
         ready!(self.io.poll_write_ready(lw)?);
 
         let r = self.io.get_ref().send_to(buf, path);
