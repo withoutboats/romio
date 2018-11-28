@@ -59,13 +59,13 @@ impl TcpStream {
     ///
     /// ```no_run
     /// #![feature(async_await, await_macro, futures_api)]
-    /// use std::io;
+    /// # use std::io;
     /// use romio::tcp::TcpStream;
     ///
-    /// async fn connect_localhost() -> io::Result<TcpStream> {
-    ///     let addr = "127.0.0.1".parse().unwrap();
-    ///     await!(TcpStream::connect(&addr))
-    /// }
+    /// # async fn connect_localhost() -> io::Result<TcpStream> {
+    /// let addr = "127.0.0.1".parse().unwrap();
+    /// await!(TcpStream::connect(&addr))
+    /// # }
     /// ```
     pub fn connect(addr: &SocketAddr) -> ConnectFuture {
         use self::ConnectFutureState::*;

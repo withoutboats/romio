@@ -85,9 +85,7 @@ impl UdpSocket {
     ///
     /// ```rust,no_run
     /// #![feature(async_await, await_macro, futures_api)]
-    ///
-    /// use std::error::Error;
-    ///
+    /// # use std::error::Error;
     /// use romio::udp::UdpSocket;
     ///
     /// const THE_MERCHANT_OF_VENICE: &[u8] = b"
@@ -97,15 +95,14 @@ impl UdpSocket {
     ///     And if you wrong us, shall we not revenge? 
     /// ";
     ///
-    /// async fn send_data() -> Result<(), Box<dyn Error + 'static>> {
-    ///     let addr = "127.0.0.1:0".parse()?;
-    ///     let target = "127.0.0.1:7878".parse()?;
-    ///     let mut socket = UdpSocket::bind(&addr)?;
+    /// # async fn send_data() -> Result<(), Box<dyn Error + 'static>> {
+    /// let addr = "127.0.0.1:0".parse()?;
+    /// let target = "127.0.0.1:7878".parse()?;
+    /// let mut socket = UdpSocket::bind(&addr)?;
     ///
-    ///     await!(socket.send_to(THE_MERCHANT_OF_VENICE, &target))?;
-    ///
-    ///     Ok(())
-    /// }
+    /// await!(socket.send_to(THE_MERCHANT_OF_VENICE, &target))?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn send_to<'a, 'b>(&'a mut self, buf: &'b [u8], target: &'b SocketAddr) -> SendTo<'a, 'b> {
         SendTo { buf, target, socket: self }
@@ -118,20 +115,17 @@ impl UdpSocket {
     ///
     /// ```rust,no_run
     /// #![feature(futures_api, async_await, await_macro)]
-    ///
-    /// use std::error::Error;
-    ///
+    /// # use std::error::Error;
     /// use romio::udp::UdpSocket;
     ///
-    /// async fn recv_data() -> Result<Vec<u8>, Box<dyn Error + 'static>> {
-    ///     let addr = "127.0.0.1:0".parse()?;
-    ///     let mut socket = UdpSocket::bind(&addr)?;
-    ///     let mut buf = vec![0; 1024];
+    /// # async fn recv_data() -> Result<Vec<u8>, Box<dyn Error + 'static>> {
+    /// let addr = "127.0.0.1:0".parse()?;
+    /// let mut socket = UdpSocket::bind(&addr)?;
+    /// let mut buf = vec![0; 1024];
     ///
-    ///     await!(socket.recv_from(&mut buf))?;
-    ///
-    ///     Ok(buf)
-    /// }
+    /// await!(socket.recv_from(&mut buf))?;
+    /// # Ok(buf)
+    /// # }
     /// ```
     pub fn recv_from<'a, 'b>(&'a mut self, buf: &'b mut [u8]) -> RecvFrom<'a, 'b> {
         RecvFrom { buf, socket: self }
