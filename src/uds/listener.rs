@@ -14,12 +14,47 @@ use std::path::Path;
 use std::pin::Pin;
 
 /// A Unix socket which can accept connections from other Unix sockets.
+///
+/// # Examples
+///
+/// ```no_run
+/// #![feature(async_await, await_macro, futures_api)]
+/// use romio::uds::{UnixListener, UnixStream};
+/// use futures::prelude::*;
+///
+/// async fn say_hello(mut stream: UnixStream) {
+///     await!(stream.write_all(b"Shall I hear more, or shall I speak at this?!"));
+/// }
+///
+/// async fn listen() -> Result<(), Box<dyn std::error::Error + 'static>> {
+///     let listener = UnixListener::bind("/tmp/sock")?;
+///     let mut incoming = listener.incoming();
+///
+///     // accept connections and process them serially
+///     while let Some(stream) = await!(incoming.next()) {
+///         await!(say_hello(stream?));
+///     }
+///     Ok(())
+/// }
+/// ```
 pub struct UnixListener {
     io: PollEvented<mio_uds::UnixListener>,
 }
 
 impl UnixListener {
     /// Creates a new `UnixListener` bound to the specified path.
+    ///
+    /// # Examples
+    /// Create a Unix Domain Socket on `/tmp/sock`.
+    ///
+    /// ```rust,no_run
+    /// use romio::uds::UnixListener;
+    ///
+    /// # fn main () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let socket = UnixListener::bind("/tmp/sock")?;
+    /// # Ok(())}
+    /// ```
+    ///
     pub fn bind(path: impl AsRef<Path>) -> io::Result<UnixListener> {
         let listener = mio_uds::UnixListener::bind(path)?;
         let io = PollEvented::new(listener);
@@ -27,11 +62,35 @@ impl UnixListener {
     }
 
     /// Returns the local socket address of this listener.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use romio::uds::UnixListener;
+    ///
+    /// # fn main () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let socket = UnixListener::bind("/tmp/sock")?;
+    /// let addr = socket.local_addr()?;
+    /// # Ok(())}
+    /// ```
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().local_addr()
     }
 
     /// Returns the value of the `SO_ERROR` option.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use romio::uds::UnixListener;
+    ///
+    /// # fn main () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let listener = UnixListener::bind("/tmp/sock")?;
+    /// if let Ok(Some(err)) = listener.take_error() {
+    ///     println!("Got error: {:?}", err);
+    /// }
+    /// # Ok(())}
+    /// ```
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
         self.io.get_ref().take_error()
     }
@@ -41,6 +100,30 @@ impl UnixListener {
     ///
     /// This method returns an implementation of the `Stream` trait which
     /// resolves to the sockets the are accepted on this listener.
+    ///
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::uds::UnixListener;
+    /// use futures::prelude::*;
+    ///
+    /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let listener = UnixListener::bind("/tmp/sock")?;
+    /// let mut incoming = listener.incoming();
+    ///
+    /// // accept connections and process them serially
+    /// while let Some(stream) = await!(incoming.next()) {
+    ///     match stream {
+    ///         Ok(stream) => {
+    ///             println!("new client!");
+    ///         },
+    ///         Err(e) => { /* connection failed */ }
+    ///     }
+    /// }
+    /// # Ok(())}
+    /// ```
     pub fn incoming(self) -> Incoming {
         Incoming::new(self)
     }
