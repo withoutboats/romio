@@ -10,7 +10,7 @@ pub struct UCred {
 }
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
-pub use self::impl_linux::get_peer_cred;
+pub(crate) use self::impl_linux::get_peer_cred;
 
 #[cfg(any(
     target_os = "dragonfly",
@@ -20,10 +20,10 @@ pub use self::impl_linux::get_peer_cred;
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-pub use self::impl_macos::get_peer_cred;
+pub(crate) use self::impl_macos::get_peer_cred;
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
-pub mod impl_linux {
+pub(crate) mod impl_linux {
     use crate::uds::UnixStream;
     use libc::{c_void, getsockopt, socklen_t, SOL_SOCKET, SO_PEERCRED};
     use std::os::unix::io::AsRawFd;
@@ -31,7 +31,7 @@ pub mod impl_linux {
 
     use libc::ucred;
 
-    pub fn get_peer_cred(sock: &UnixStream) -> io::Result<super::UCred> {
+    pub(crate) fn get_peer_cred(sock: &UnixStream) -> io::Result<super::UCred> {
         unsafe {
             let raw_fd = sock.as_raw_fd();
 
@@ -76,13 +76,13 @@ pub mod impl_linux {
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-pub mod impl_macos {
+pub(crate) mod impl_macos {
     use crate::uds::UnixStream;
     use libc::getpeereid;
     use std::os::unix::io::AsRawFd;
     use std::{io, mem};
 
-    pub fn get_peer_cred(sock: &UnixStream) -> io::Result<super::UCred> {
+    pub(crate) fn get_peer_cred(sock: &UnixStream) -> io::Result<super::UCred> {
         unsafe {
             let raw_fd = sock.as_raw_fd();
 
