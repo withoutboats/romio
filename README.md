@@ -21,29 +21,34 @@ Romio's primitives are:
 
 The API docs for the master branch are published [here][master-dox].
 
-## Example
+## Examples
 
+TODO example
 
 ## Relationship to Tokio
 
 Romio is a fork of another Rust project called [Tokio][tokio]. The Tokio
-project uses an outdated version of the futures API, and has not yet ported to
-the API currently under development. This means that Tokio, and projects built
-on top of it, are not directly compatible with Rust's "async/await" syntax for
-writing asynchronous code, and require compatibility shims.
+project uses an older version of the futures API which is not compatible with
+the new "async/await" syntax. In order to enable people to experiment with
+"async/await," Romio ports parts of the tokio project to the newer futures API
+which is compatible with that syntax.
 
-Romio forks the most essential parts of tokio - the reactor & IO primitives -
-to the current futures API, so that we can get more user feedback on the
-async/await feature and the current futures APIs. You should use romio if you
-want to try using async/await.
+Romio is not a complete port of tokio: it only contains a small part of the
+entire tokio code base: the IO primitives necessary for writing asynchronous
+networking code. It does not expose low level control of the core "reactor" -
+instead, all async IO primitives use the default reactor set up - and it
+doesn't contain many other parts of tokio that are not directly related to
+asynchronous IO.
 
-**However**, you should prefer to use tokio if you want to use the stable
-version of Rust, or because you want to use libraries like hyper, actix, or
-tower (which all depend on tokio).
+You should use romio if you want to experiment with writing networking code
+using the new async/await syntax. However, romio is not directly compatible
+with other libraries built on top of tokio - like hyper, actix, and tower - so
+if you want to use those, romio not be a good fit for you.
 
-It is our intention that in the future the changes made in romio to be
-compatible with futures 0.3 will eventually be upstreamed back to tokio and the
-romio fork will cease to be maintained.
+Romio is intended to unblock people trying to experiment with async/await,
+which is why it exposes such a minimal API. It's not intended to be a full
+fledged "competitor" to tokio, which we expect will eventually move to the
+newer futures API and be compatible with async/await syntax.
 
 ## License
 
