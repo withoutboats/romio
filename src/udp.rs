@@ -14,8 +14,10 @@
 use std::fmt;
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::pin::Pin;
 
 use futures::task::LocalWaker;
+use futures::Future;
 use futures::{ready, Poll};
 use mio;
 
@@ -40,6 +42,65 @@ impl UdpSocket {
     /// Returns the local address that this socket is bound to.
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().local_addr()
+    }
+
+    /// Sends data on the socket to the given address. On success, returns the
+    /// number of bytes written.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// #![feature(async_await, await_macro, futures_api)]
+    ///
+    /// use std::error::Error;
+    ///
+    /// use romio::udp::UdpSocket;
+    ///
+    /// const THE_MERCHANT_OF_VENICE: &[u8] = b"
+    ///     If you prick us, do we not bleed?
+    ///     If you tickle us, do we not laugh?
+    ///     If you poison us, do we not die?
+    ///     And if you wrong us, shall we not revenge? 
+    /// ";
+    ///
+    /// async fn send_data() -> Result<(), Box<dyn Error + 'static>> {
+    ///     let addr = "127.0.0.1:0".parse()?;
+    ///     let target = "127.0.0.1:7878".parse()?;
+    ///     let mut socket = UdpSocket::bind(&addr)?;
+    ///
+    ///     await!(socket.send_to(THE_MERCHANT_OF_VENICE, &target))?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn send_to<'a, 'b>(&'a mut self, buf: &'b [u8], target: &'b SocketAddr) -> SendTo<'a, 'b> {
+        SendTo { buf, target, socket: self }
+    }
+
+    /// Receives data from the socket. On success, returns the number of bytes
+    /// read and the address from whence the data came.
+    ///
+    /// # Exampes
+    ///
+    /// ```rust,no_run
+    /// #![feature(futures_api, async_await, await_macro)]
+    ///
+    /// use std::error::Error;
+    ///
+    /// use romio::udp::UdpSocket;
+    ///
+    /// async fn recv_data() -> Result<Vec<u8>, Box<dyn Error + 'static>> {
+    ///     let addr = "127.0.0.1:0".parse()?;
+    ///     let mut socket = UdpSocket::bind(&addr)?;
+    ///     let mut buf = vec![0; 1024];
+    ///
+    ///     await!(socket.recv_from(&mut buf))?;
+    ///
+    ///     Ok(buf)
+    /// }
+    /// ```
+    pub fn recv_from<'a, 'b>(&'a mut self, buf: &'b mut [u8]) -> RecvFrom<'a, 'b> {
+        RecvFrom { buf, socket: self }
     }
 
     /// Sends data on the socket to the given address. On success, returns the
@@ -73,8 +134,6 @@ impl UdpSocket {
         }
     }
 
-    /// Receives data from the socket. On success, returns the number of bytes
-    /// read and the address from whence the data came.
     ///
     /// If the socket is not ready for receiving, the method returns
     /// `Ok(Poll::Pending)` and arranges for the current task to receive a
@@ -268,5 +327,38 @@ mod sys {
         fn as_raw_fd(&self) -> RawFd {
             self.io.get_ref().as_raw_fd()
         }
+    }
+}
+
+/// The future returned by `UdpSocket::send_to`
+#[derive(Debug)]
+pub struct SendTo<'a, 'b> {
+    socket: &'a mut UdpSocket,
+    buf: &'b [u8],
+    target: &'b SocketAddr,
+}
+
+impl<'a, 'b> Future for SendTo<'a, 'b> {
+    type Output = io::Result<usize>;
+
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        let SendTo { socket, buf, target } = &mut *self;
+        socket.poll_send_to(lw, buf, target)
+    }
+}
+
+/// The future returned by `UdpSocket::recv_from`
+#[derive(Debug)]
+pub struct RecvFrom<'a, 'b> {
+    socket: &'a mut UdpSocket,
+    buf: &'b mut [u8],
+}
+
+impl<'a, 'b> Future for RecvFrom<'a, 'b> {
+    type Output = io::Result<(usize, SocketAddr)>;
+
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        let RecvFrom { socket, buf } = &mut *self;
+        socket.poll_recv_from(lw, buf)
     }
 }
