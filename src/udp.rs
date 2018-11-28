@@ -30,6 +30,24 @@ pub struct UdpSocket {
 
 impl UdpSocket {
     /// Creates a UDP socket from the given address.
+    ///
+    /// Binding with a port number of 0 will request that the OS assigns a port
+    /// to this socket. The port allocated can be queried via the
+    /// [`local_addr`] method.
+    ///
+    /// [`local_addr`]: #method.local_addr
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use romio::udp::UdpSocket;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let socket_addr = "127.0.0.1:0".parse()?;
+    /// let socket = UdpSocket::bind(&socket_addr)?;
+    /// # Ok(())
+    /// #}
+    /// ```
     pub fn bind(addr: &SocketAddr) -> io::Result<UdpSocket> {
         mio::net::UdpSocket::bind(addr).map(UdpSocket::new)
     }
@@ -39,7 +57,23 @@ impl UdpSocket {
         UdpSocket { io: io }
     }
 
-    /// Returns the local address that this socket is bound to.
+    /// Returns the local address that this listener is bound to.
+    ///
+    /// This can be useful, for example, when binding to port 0 to figure out
+    /// which port was actually bound.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    ///	use romio::udp::UdpSocket;
+    ///
+    ///	# fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let socket_addr = "127.0.0.1:0".parse()?;
+    /// # let socket = UdpSocket::bind(&socket_addr)?;
+    /// println!("Socket addr: {:?}", socket.local_addr());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().local_addr()
     }
@@ -280,6 +314,22 @@ impl UdpSocket {
     /// address of the local interface with which the system should join the
     /// multicast group. If it's equal to `INADDR_ANY` then an appropriate
     /// interface is chosen by the system.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use romio::udp::UdpSocket;
+    /// use std::net::Ipv4Addr;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let socket_addr = "127.0.0.1:0".parse()?;
+    /// let interface = Ipv4Addr::new(0, 0, 0, 0);
+    /// let mdns_addr = Ipv4Addr::new(224, 0, 0, 123);
+    ///
+    /// let socket = UdpSocket::bind(&socket_addr)?;
+    /// socket.join_multicast_v4(&mdns_addr, &interface)?;
+    /// # Ok(()) }
+    /// ```
     pub fn join_multicast_v4(&self, multiaddr: &Ipv4Addr, interface: &Ipv4Addr) -> io::Result<()> {
         self.io.get_ref().join_multicast_v4(multiaddr, interface)
     }
@@ -289,6 +339,20 @@ impl UdpSocket {
     /// This function specifies a new multicast group for this socket to join.
     /// The address must be a valid multicast address, and `interface` is the
     /// index of the interface to join/leave (or 0 to indicate any interface).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use romio::udp::UdpSocket;
+    /// use std::net::{Ipv6Addr, SocketAddr};
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let socket_addr = SocketAddr::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0).into(), 0);
+    /// let mdns_addr = Ipv6Addr::new(0xFF02, 0, 0, 0, 0, 0, 0, 0x0123) ;
+    /// let socket = UdpSocket::bind(&socket_addr)?;
+    ///
+    /// socket.join_multicast_v6(&mdns_addr, 0)?;
+    /// # Ok(()) }
+    /// ```
     pub fn join_multicast_v6(&self, multiaddr: &Ipv6Addr, interface: u32) -> io::Result<()> {
         self.io.get_ref().join_multicast_v6(multiaddr, interface)
     }
