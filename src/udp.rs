@@ -46,7 +46,7 @@ impl UdpSocket {
     /// let socket_addr = "127.0.0.1:0".parse()?;
     /// let socket = UdpSocket::bind(&socket_addr)?;
     /// # Ok(())
-    /// #}
+    /// # }
     /// ```
     pub fn bind(addr: &SocketAddr) -> io::Result<UdpSocket> {
         mio::net::UdpSocket::bind(addr).map(UdpSocket::new)
