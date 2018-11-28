@@ -57,7 +57,6 @@
 //! ```
 
 #![feature(futures_api, pin, arbitrary_self_types)]
-#![doc(html_root_url = "https://docs.rs/tokio-reactor/0.1.6")]
 #![deny(missing_docs, missing_debug_implementations)]
 #![cfg_attr(test, deny(warnings))]
 

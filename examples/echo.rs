@@ -25,7 +25,7 @@ fn main() -> io::Result<()> {
             threadpool.spawn(async move {
                 println!("Accepting stream from: {}", addr);
 
-                await!(echo_on(stream, addr)).unwrap();
+                await!(echo_on(stream)).unwrap();
 
                 println!("Closing stream from: {}", addr);
             }).unwrap();
