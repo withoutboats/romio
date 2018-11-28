@@ -1,5 +1,7 @@
 # Romio
 
+[![MIT licensed][mit-badge]][mit-url]
+
 Asynchronous network primitives in Rust.
 
 Romio combines the powerful [`futures`][futures] abstractions with the
@@ -14,16 +16,15 @@ Romio's primitives are:
 * **Scalable**: Romio has a minimal footprint and handles backpressure and
   cancellation naturally.
 
-[![MIT licensed][mit-badge]][mit-url]
+Romio is based on the [Tokio][tokio] crate, porting components from it to a
+newer version of the futures crate.
 
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
 [mit-url]: LICENSE-MIT
 
-The API docs for the master branch are published [here][master-dox].
-
 ## Examples
 
-TODO example
+TODO add example
 
 ## Relationship to Tokio
 
@@ -57,7 +58,7 @@ This project is licensed under the [MIT license](LICENSE).
 ### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in Tokio by you, shall be licensed as MIT, without any additional
+for inclusion in romio by you, shall be licensed as MIT, without any additional
 terms or conditions.
 
 [futures]: https://crates.io/crates/futures
