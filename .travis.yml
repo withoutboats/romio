@@ -1,0 +1,28 @@
+---
+language: rust
+rust:
+    - nightly
+sudo: false
+cache:
+  - apt
+  - cargo
+addons:
+  apt:
+    packages:
+    # to x-compile miniz-sys from sources
+    - gcc-multilib
+
+matrix:
+  include:
+  - os: osx
+  - env: TARGET=x86_64-unknown-freebsd
+  - env: TARGET=i686-unknown-freebsd
+  - env: TARGET=i686-unknown-linux-gnu
+
+script:
+  - cargo test
+  - cargo doc --no-deps
+
+notifications:
+  email:
+    on_success: never
