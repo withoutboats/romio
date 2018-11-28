@@ -36,6 +36,7 @@ package = "futures-preview"
 
 [dev-dependencies]
 tempdir = "0.3.7"
+rand = "0.6.1"
 
 [dev-dependencies.env_logger]
 version = "0.5"
