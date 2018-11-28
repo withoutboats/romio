@@ -311,7 +311,7 @@ impl UdpSocket {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use romio::udp::UdpSocket;
     /// use std::net::Ipv4Addr;
     ///
@@ -336,7 +336,7 @@ impl UdpSocket {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use romio::udp::UdpSocket;
     /// use std::net::{Ipv6Addr, SocketAddr};
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
