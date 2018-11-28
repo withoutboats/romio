@@ -19,6 +19,16 @@ pub struct UnixDatagram {
 
 impl UnixDatagram {
     /// Creates a new `UnixDatagram` bound to the specified path.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use romio::uds::UnixDatagram;
+    ///
+    /// # fn run() -> std::io::Result<()> {
+    /// let sock = UnixDatagram::bind("/tmp/sock")?;
+    /// # Ok(()) }
+    /// ```
     pub fn bind(path: impl AsRef<Path>) -> io::Result<UnixDatagram> {
         let socket = mio_uds::UnixDatagram::bind(path)?;
         Ok(UnixDatagram::new(socket))
@@ -29,6 +39,16 @@ impl UnixDatagram {
     /// This function will create a pair of interconnected Unix sockets for
     /// communicating back and forth between one another. Each socket will be
     /// associated with the event loop whose handle is also provided.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use romio::uds::UnixDatagram;
+    ///
+    /// # fn run() -> std::io::Result<()> {
+    /// let (sock1, sock2) = UnixDatagram::pair()?;
+    /// # Ok(()) }
+    /// ```
     pub fn pair() -> io::Result<(UnixDatagram, UnixDatagram)> {
         let (a, b) = mio_uds::UnixDatagram::pair()?;
         let a = UnixDatagram::new(a);
@@ -43,6 +63,16 @@ impl UnixDatagram {
     }
 
     /// Creates a new `UnixDatagram` which is not bound to any address.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use romio::uds::UnixDatagram;
+    ///
+    /// # fn run() -> std::io::Result<()> {
+    /// let sock = UnixDatagram::unbound()?;
+    /// # Ok(()) }
+    /// ```
     pub fn unbound() -> io::Result<UnixDatagram> {
         let socket = mio_uds::UnixDatagram::unbound()?;
         Ok(UnixDatagram::new(socket))
@@ -59,6 +89,16 @@ impl UnixDatagram {
     }
 
     /// Returns the local address that this socket is bound to.
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use romio::uds::UnixDatagram;
+    ///
+    /// # fn run() -> std::io::Result<()> {
+    /// let stream = UnixDatagram::bind("/tmp/sock")?;
+    /// let addr = stream.local_addr()?;
+    /// # Ok(()) }
+    /// ```
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().local_addr()
     }
@@ -66,6 +106,17 @@ impl UnixDatagram {
     /// Returns the address of this socket's peer.
     ///
     /// The `connect` method will connect the socket to a peer.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use romio::uds::UnixDatagram;
+    ///
+    /// # fn run() -> std::io::Result<()> {
+    /// let stream = UnixDatagram::bind("/tmp/sock")?;
+    /// let addr = stream.peer_addr()?;
+    /// # Ok(()) }
+    /// ```
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
         self.io.get_ref().peer_addr()
     }
@@ -113,6 +164,19 @@ impl UnixDatagram {
     }
 
     /// Returns the value of the `SO_ERROR` option.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use romio::uds::UnixDatagram;
+    ///
+    /// # fn run() -> std::io::Result<()> {
+    /// let stream = UnixDatagram::bind("/tmp/sock")?;
+    /// if let Ok(Some(err)) = stream.take_error() {
+    ///     println!("Got error: {:?}", err);
+    /// }
+    /// # Ok(()) }
+    /// ```
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
         self.io.get_ref().take_error()
     }
@@ -122,6 +186,18 @@ impl UnixDatagram {
     /// This function will cause all pending and future I/O calls on the
     /// specified portions to immediately return with an appropriate value
     /// (see the documentation of `Shutdown`).
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use romio::uds::UnixDatagram;
+    /// use std::net::Shutdown;
+    ///
+    /// # fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
+    /// let stream = UnixDatagram::bind("/tmp/sock")?;
+    /// stream.shutdown(Shutdown::Both)?;
+    /// # Ok(())}
+    /// ```
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         self.io.get_ref().shutdown(how)
     }
