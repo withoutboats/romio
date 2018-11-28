@@ -129,7 +129,7 @@ asynchronous IO.
 You should use romio if you want to experiment with writing networking code
 using the new async/await syntax. However, romio is not directly compatible
 with other libraries built on top of tokio - like hyper, actix, and tower - so
-if you want to use those, romio not be a good fit for you.
+if you want to use those, romio might not be a good fit for you.
 
 Romio is intended to unblock people trying to experiment with async/await,
 which is why it exposes such a minimal API. It's not intended to be a full
