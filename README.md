@@ -1,5 +1,8 @@
 # Romio
 
+[![build status][travis-badge]][travis-url]
+[![crates.io version][crates-badge]][crates-url]
+[![docs.rs docs][docs-badge]][docs-url]
 [![MIT licensed][mit-badge]][mit-url]
 
 Asynchronous network primitives in Rust.
@@ -19,7 +22,13 @@ Romio's primitives are:
 Romio is based on the [Tokio][tokio] crate, porting components from it to a
 newer version of the futures crate.
 
-[mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
+[travis-badge]: https://img.shields.io/travis/withoutboats/romio/master.svg?style=flat-square
+[travis-url]: https://travis-ci.org/withoutboats/romio
+[crates-badge]: https://img.shields.io/crates/v/romio.svg?style=flat-square
+[crates-url]: https://crates.io/crates/romio
+[docs-badge]: https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square
+[docs-url]: https://withoutboats.github.io/romio
+[mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square
 [mit-url]: LICENSE-MIT
 
 ## Examples
