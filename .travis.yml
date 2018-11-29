@@ -23,6 +23,16 @@ script:
   - cargo test
   - cargo doc --no-deps
 
+deploy:
+  provider: pages
+  skip-cleanup: true
+  local-dir: "target/doc/romio"
+  api_key:
+    secure: "RiEo7/jAXW3AdhX3eF7N+rOEcTxKecB5lnwlIiX110z10dVJgMoLisRRFF9NgyAqNIrrIkzDnu1YDqT8OyMU1YXPRlurPDNI0TL8lF0zAieaECSEe6mwXbAAwlmbmWTmkEfak4EWs1+4bD6XfZAsYwR3qsmJ6dejhxztdAm06EsX2UsGCdaaczPATd5NlnXS0YGIxu9cGL74hlVLUuhd1qbjvNiU2GPdaJ9THE2rskJlA6Wt0nQoYa9Glml4YbMD+LJI+vEs2EoMIwJoQ1/pBxicgY4WHARiv+V5hOgD7MowC0Ebra2NLtTl3E3TJc44llC8dmxVsPSUahx/p+UnxqEw3QV0Q/OzGSGQE5ggC8vQuDueTiHyFnVXG3r3YzLrwZrc4cZcVfL7plWlGxaNHU9ulKYjg+qkFI10MMUHQ7iStYBfEe7C7ovIUuEwhATd/j4VAUq7SWIsLoBJMxa/HHd0ahE4aE3WmcKVljhGPliSxg1ZR6l3LuSxKZ7tLwoKDC6l26I3w6A+msrbIdyVwwNi8b2NQsBlCCAo9klMAAi4jiOcRqBVaC/ZNQtRTFqKu9IcUkEANs55ce8P54yXWcNY0HoW9skkYPPNvIULxoBSU7aV/AWkPhWidZEoxZ9Jz2ZATt99BnSVCzFFOrtaPixwyiF9WXnhAzt6D4zy2u4="
+  keep-history: true
+  on:
+    branch: master
+
 notifications:
   email:
     on_success: never
