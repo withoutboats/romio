@@ -144,8 +144,8 @@ impl TcpListener {
     /// }
     /// # Ok(())}
     /// ```
-    pub fn incoming(self) -> Incoming {
-        Incoming::new(self)
+    pub fn incoming(&self) -> Incoming<'_> {
+        Incoming { inner: self }
     }
 
     /// Gets the value of the `IP_TTL` option for this socket.
@@ -194,7 +194,7 @@ impl TcpListener {
         self.io.get_ref().set_ttl(ttl)
     }
 
-    fn poll_accept(&mut self, lw: &LocalWaker) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
+    fn poll_accept(&self, lw: &LocalWaker) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
         let (io, addr) = ready!(self.poll_accept_std(lw)?);
 
         let io = mio::net::TcpStream::from_stream(io)?;
@@ -204,7 +204,7 @@ impl TcpListener {
     }
 
     fn poll_accept_std(
-        &mut self,
+        &self,
         lw: &LocalWaker,
     ) -> Poll<io::Result<(net::TcpStream, SocketAddr)>> {
         ready!(self.io.poll_read_ready(lw)?);
@@ -242,20 +242,14 @@ mod sys {
 /// stream of sockets received from a listener.
 #[must_use = "streams do nothing unless polled"]
 #[derive(Debug)]
-pub struct Incoming {
-    inner: TcpListener,
+pub struct Incoming<'a> {
+    inner: &'a TcpListener,
 }
 
-impl Incoming {
-    pub(crate) fn new(listener: TcpListener) -> Incoming {
-        Incoming { inner: listener }
-    }
-}
-
-impl Stream for Incoming {
+impl<'a> Stream for Incoming<'a> {
     type Item = io::Result<TcpStream>;
 
-    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
         let (socket, _) = ready!(self.inner.poll_accept(lw)?);
         Poll::Ready(Some(Ok(socket)))
     }
