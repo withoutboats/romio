@@ -12,6 +12,7 @@ authors = ["The Rust Networking Working Group", "Carl Lerche <me@carllerche.com>
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/withoutboats/romio"
+documentation = "https://withoutboats.github.io/romio/romio"
 description = """
 Event loop and I/O resources for asynchronous network services using futures
 """
