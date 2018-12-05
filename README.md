@@ -27,7 +27,7 @@ newer version of the futures crate.
 [crates-badge]: https://img.shields.io/crates/v/romio.svg?style=flat-square
 [crates-url]: https://crates.io/crates/romio
 [docs-badge]: https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square
-[docs-url]: https://withoutboats.github.io/romio
+[docs-url]: https://withoutboats.github.io/romio/romio
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square
 [mit-url]: LICENSE-MIT
 
