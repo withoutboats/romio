@@ -21,7 +21,7 @@ const THE_WINTERS_TALE: &[u8] = b"
 #[test]
 fn listener_reads() {
     drop(env_logger::try_init());
-    let server = TcpListener::bind(&"127.0.0.1:0".parse().unwrap()).unwrap();
+    let mut server = TcpListener::bind(&"127.0.0.1:0".parse().unwrap()).unwrap();
     let addr = server.local_addr().unwrap();
 
     // client thread
@@ -42,7 +42,7 @@ fn listener_reads() {
 #[test]
 fn listener_writes() {
     drop(env_logger::try_init());
-    let server = TcpListener::bind(&"127.0.0.1:0".parse().unwrap()).unwrap();
+    let mut server = TcpListener::bind(&"127.0.0.1:0".parse().unwrap()).unwrap();
     let addr = server.local_addr().unwrap();
 
     // client thread
@@ -63,7 +63,7 @@ fn listener_writes() {
 #[test]
 fn both_sides_async_using_threadpool() {
     drop(env_logger::try_init());
-    let server = TcpListener::bind(&"127.0.0.1:0".parse().unwrap()).unwrap();
+    let mut server = TcpListener::bind(&"127.0.0.1:0".parse().unwrap()).unwrap();
     let addr = server.local_addr().unwrap();
     
     let mut pool = executor::ThreadPool::new().unwrap();

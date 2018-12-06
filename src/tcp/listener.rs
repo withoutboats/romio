@@ -38,7 +38,7 @@ use crate::reactor::PollEvented;
 ///
 /// async fn listen() -> Result<(), Box<dyn Error + 'static>> {
 ///     let socket_addr = "127.0.0.1:80".parse()?;
-///     let listener = TcpListener::bind(&socket_addr)?;
+///     let mut listener = TcpListener::bind(&socket_addr)?;
 ///     let mut incoming = listener.incoming();
 ///
 ///     // accept connections and process them serially
@@ -130,7 +130,7 @@ impl TcpListener {
     ///
     /// # async fn work () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let socket_addr = "127.0.0.1:80".parse()?;
-    /// let listener = TcpListener::bind(&socket_addr)?;
+    /// let mut listener = TcpListener::bind(&socket_addr)?;
     /// let mut incoming = listener.incoming();
     ///
     /// // accept connections and process them serially

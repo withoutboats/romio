@@ -26,7 +26,7 @@ fn main() -> io::Result<()> {
     executor::block_on(async {
         let mut threadpool = ThreadPool::new()?;
 
-        let listener = TcpListener::bind(&"127.0.0.1:7878".parse().unwrap())?;
+        let mut listener = TcpListener::bind(&"127.0.0.1:7878".parse().unwrap())?;
         let mut incoming = listener.incoming();
 
         println!("Listening on 127.0.0.1:7878");
