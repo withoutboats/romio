@@ -28,7 +28,7 @@
 //!
 //! async fn listen() -> Result<(), Box<dyn std::error::Error + 'static>> {
 //!     let socket_addr = "127.0.0.1:8080".parse()?;
-//!     let listener = TcpListener::bind(&socket_addr)?;
+//!     let mut listener = TcpListener::bind(&socket_addr)?;
 //!     let mut incoming = listener.incoming();
 //!
 //!     // accept connections and process them serially

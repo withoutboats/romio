@@ -38,7 +38,7 @@ use crate::reactor::PollEvented;
 ///
 /// async fn listen() -> Result<(), Box<dyn Error + 'static>> {
 ///     let socket_addr = "127.0.0.1:80".parse()?;
-///     let listener = TcpListener::bind(&socket_addr)?;
+///     let mut listener = TcpListener::bind(&socket_addr)?;
 ///     let mut incoming = listener.incoming();
 ///
 ///     // accept connections and process them serially
@@ -130,7 +130,7 @@ impl TcpListener {
     ///
     /// # async fn work () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let socket_addr = "127.0.0.1:80".parse()?;
-    /// let listener = TcpListener::bind(&socket_addr)?;
+    /// let mut listener = TcpListener::bind(&socket_addr)?;
     /// let mut incoming = listener.incoming();
     ///
     /// // accept connections and process them serially
@@ -144,8 +144,8 @@ impl TcpListener {
     /// }
     /// # Ok(())}
     /// ```
-    pub fn incoming(self) -> Incoming {
-        Incoming::new(self)
+    pub fn incoming(&mut self) -> Incoming<'_> {
+        Incoming { inner: self }
     }
 
     /// Gets the value of the `IP_TTL` option for this socket.
@@ -242,17 +242,11 @@ mod sys {
 /// stream of sockets received from a listener.
 #[must_use = "streams do nothing unless polled"]
 #[derive(Debug)]
-pub struct Incoming {
-    inner: TcpListener,
+pub struct Incoming<'a> {
+    inner: &'a mut TcpListener,
 }
 
-impl Incoming {
-    pub(crate) fn new(listener: TcpListener) -> Incoming {
-        Incoming { inner: listener }
-    }
-}
-
-impl Stream for Incoming {
+impl<'a> Stream for Incoming<'a> {
     type Item = io::Result<TcpStream>;
 
     fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
