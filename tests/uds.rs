@@ -1,5 +1,5 @@
 #![cfg(unix)]
-#![feature(async_await, await_macro, pin)]
+#![feature(async_await, await_macro)]
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream as StdStream;
 use std::thread;
@@ -86,13 +86,13 @@ fn both_sides_async_using_threadpool() -> Result<(), Error>{
 
     let mut pool = executor::ThreadPool::new().unwrap();
 
-    pool.run(FutureObj::from(Box::pinned(async move {
+    pool.run(FutureObj::from(Box::pin(async move {
         let file_path = file_path.as_pathname().unwrap();
         let mut client = await!(UnixStream::connect(&file_path)).unwrap();
         await!(client.write_all(THE_WINTERS_TALE)).unwrap();
     })));
 
-    pool.run(FutureObj::from(Box::pinned(async {
+    pool.run(FutureObj::from(Box::pin(async {
         let mut buf = vec![0; THE_WINTERS_TALE.len()];
         let mut incoming = listener.incoming();
         let mut stream = await!(incoming.next()).unwrap().unwrap();

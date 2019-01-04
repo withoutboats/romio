@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro, pin)]
+#![feature(async_await, await_macro)]
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::thread;
@@ -7,7 +7,6 @@ use futures::{StreamExt};
 use futures::executor;
 use futures::future::FutureObj;
 use futures::io::{AsyncReadExt, AsyncWriteExt};
-use futures::task::Spawn;
 
 use romio::TcpListener;
 
@@ -65,15 +64,15 @@ fn both_sides_async_using_threadpool() {
     drop(env_logger::try_init());
     let mut server = TcpListener::bind(&"127.0.0.1:0".parse().unwrap()).unwrap();
     let addr = server.local_addr().unwrap();
-    
+
     let mut pool = executor::ThreadPool::new().unwrap();
 
-    pool.run(FutureObj::from(Box::pinned(async move {
+    pool.run(FutureObj::from(Box::pin(async move {
         let mut client = await!(romio::TcpStream::connect(&addr)).unwrap();
         await!(client.write_all(THE_WINTERS_TALE)).unwrap();
     })));
 
-    pool.run(FutureObj::from(Box::pinned(async {
+    pool.run(FutureObj::from(Box::pin(async {
         let mut buf = vec![0; THE_WINTERS_TALE.len()];
         let mut incoming = server.incoming();
         let mut stream = await!(incoming.next()).unwrap().unwrap();
