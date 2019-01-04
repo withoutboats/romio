@@ -131,19 +131,20 @@ where
         self.io.as_mut().unwrap()
     }
 
-    /// Consumes self, returning the inner I/O object
-    ///
-    /// This function will deregister the I/O resource from the reactor before
-    /// returning. If the deregistration operation fails, an error is returned.
-    ///
-    /// Note that deregistering does not guarantee that the I/O resource can be
-    /// registered with a different reactor. Some I/O resource types can only be
-    /// associated with a single reactor instance for their lifetime.
-    pub fn into_inner(mut self) -> io::Result<E> {
-        let io = self.io.take().unwrap();
-        self.inner.registration.deregister(&io)?;
-        Ok(io)
-    }
+    // TODO: restore this once we make reactor::poll_evented public
+    // /// Consumes self, returning the inner I/O object
+    // ///
+    // /// This function will deregister the I/O resource from the reactor before
+    // /// returning. If the deregistration operation fails, an error is returned.
+    // ///
+    // /// Note that deregistering does not guarantee that the I/O resource can be
+    // /// registered with a different reactor. Some I/O resource types can only be
+    // /// associated with a single reactor instance for their lifetime.
+    // pub fn into_inner(mut self) -> io::Result<E> {
+    //     let io = self.io.take().unwrap();
+    //     self.inner.registration.deregister(&io)?;
+    //     Ok(io)
+    // }
 
     /// Check the I/O resource's read readiness state.
     ///
