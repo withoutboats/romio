@@ -56,7 +56,7 @@
 //! }
 //! ```
 
-#![feature(futures_api, pin, arbitrary_self_types)]
+#![feature(futures_api, arbitrary_self_types)]
 #![deny(missing_docs, missing_debug_implementations)]
 #![cfg_attr(test, deny(warnings))]
 

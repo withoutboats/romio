@@ -31,7 +31,7 @@ slab = "0.4.0"
 libc = "0.2.43"
 
 [dependencies.futures]
-version = "0.3.0-alpha.10"
+version = "0.3.0-alpha.11"
 package = "futures-preview"
 
 [dev-dependencies]
