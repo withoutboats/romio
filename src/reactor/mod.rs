@@ -16,8 +16,8 @@ use self::sharded_rwlock::RwLock;
 use std::cell::RefCell;
 use std::io;
 use std::mem;
+use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst};
-use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 use std::{fmt, usize};
@@ -105,7 +105,7 @@ pub(crate) enum Direction {
 }
 
 /// The global fallback reactor.
-static HANDLE_FALLBACK: AtomicUsize = ATOMIC_USIZE_INIT;
+static HANDLE_FALLBACK: AtomicUsize = AtomicUsize::new(0);
 
 /// Tracks the reactor for the current execution context.
 thread_local!(static CURRENT_REACTOR: RefCell<Option<HandlePriv>> = RefCell::new(None));
