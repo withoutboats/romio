@@ -4,7 +4,7 @@ use std::io::{Read, Write};
 use std::os::unix::net::UnixStream as StdStream;
 use std::thread;
 
-use std::task::LocalWaker;
+use std::task::Waker;
 use std::pin::Pin;
 use futures::future::{FutureObj, self};
 use futures::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
@@ -148,9 +148,9 @@ impl RomioReader {
 impl Stream for RomioReader {
     type Item = Vec<u8>;
 
-    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Option<Self::Item>> {
         let this = &mut *self;
-        match this.inner.poll_read(lw, this.buffer.as_mut()) {
+        match this.inner.poll_read(waker, this.buffer.as_mut()) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Err(e)) => {
                 error!("Failed to poll_read {:?}", e);

@@ -6,7 +6,7 @@ use std::net::{self, SocketAddr};
 use std::pin::Pin;
 
 use futures::stream::Stream;
-use futures::task::LocalWaker;
+use futures::task::Waker;
 use futures::{ready, Poll};
 use mio;
 
@@ -194,8 +194,8 @@ impl TcpListener {
         self.io.get_ref().set_ttl(ttl)
     }
 
-    fn poll_accept(&mut self, lw: &LocalWaker) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
-        let (io, addr) = ready!(self.poll_accept_std(lw)?);
+    fn poll_accept(&mut self, waker: &Waker) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
+        let (io, addr) = ready!(self.poll_accept_std(waker)?);
 
         let io = mio::net::TcpStream::from_stream(io)?;
         let io = TcpStream::new(io);
@@ -205,14 +205,14 @@ impl TcpListener {
 
     fn poll_accept_std(
         &mut self,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<io::Result<(net::TcpStream, SocketAddr)>> {
-        ready!(self.io.poll_read_ready(lw)?);
+        ready!(self.io.poll_read_ready(waker)?);
 
         match self.io.get_ref().accept_std() {
             Ok(pair) => Poll::Ready(Ok(pair)),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_read_ready(lw)?;
+                self.io.clear_read_ready(waker)?;
                 Poll::Pending
             }
             Err(e) => Poll::Ready(Err(e)),
@@ -249,8 +249,8 @@ pub struct Incoming<'a> {
 impl<'a> Stream for Incoming<'a> {
     type Item = io::Result<TcpStream>;
 
-    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
-        let (socket, _) = ready!(self.inner.poll_accept(lw)?);
+    fn poll_next(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Option<Self::Item>> {
+        let (socket, _) = ready!(self.inner.poll_accept(waker)?);
         Poll::Ready(Some(Ok(socket)))
     }
 }

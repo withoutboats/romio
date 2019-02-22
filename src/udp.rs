@@ -16,7 +16,7 @@ use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::pin::Pin;
 
-use futures::task::LocalWaker;
+use futures::task::Waker;
 use futures::Future;
 use futures::{ready, Poll};
 use mio;
@@ -92,7 +92,7 @@ impl UdpSocket {
     ///     If you prick us, do we not bleed?
     ///     If you tickle us, do we not laugh?
     ///     If you poison us, do we not die?
-    ///     And if you wrong us, shall we not revenge? 
+    ///     And if you wrong us, shall we not revenge?
     /// ";
     ///
     /// # async fn send_data() -> Result<(), Box<dyn Error + 'static>> {
@@ -146,16 +146,16 @@ impl UdpSocket {
     /// notification when the socket becomes writable.
     pub fn poll_send_to(
         &mut self,
-        lw: &LocalWaker,
+        waker: &Waker,
         buf: &[u8],
         target: &SocketAddr,
     ) -> Poll<io::Result<usize>> {
-        ready!(self.io.poll_write_ready(lw)?);
+        ready!(self.io.poll_write_ready(waker)?);
 
         match self.io.get_ref().send_to(buf, target) {
             Ok(n) => Poll::Ready(Ok(n)),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_write_ready(lw)?;
+                self.io.clear_write_ready(waker)?;
                 Poll::Pending
             }
             Err(e) => Poll::Ready(Err(e)),
@@ -168,15 +168,15 @@ impl UdpSocket {
     /// notification when the socket becomes readable.
     pub fn poll_recv_from(
         &mut self,
-        lw: &LocalWaker,
+        waker: &Waker,
         buf: &mut [u8],
     ) -> Poll<io::Result<(usize, SocketAddr)>> {
-        ready!(self.io.poll_read_ready(lw)?);
+        ready!(self.io.poll_read_ready(waker)?);
 
         match self.io.get_ref().recv_from(buf) {
             Ok(n) => Poll::Ready(Ok(n)),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_read_ready(lw)?;
+                self.io.clear_read_ready(waker)?;
                 Poll::Pending
             }
             Err(e) => Poll::Ready(Err(e)),
@@ -190,8 +190,8 @@ impl UdpSocket {
     ///
     /// The socket will remain in a read-ready state until calls to `poll_recv`
     /// return `Pending`.
-    pub fn poll_read_ready(&self, lw: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
-        self.io.poll_read_ready(lw)
+    pub fn poll_read_ready(&self, waker: &Waker) -> Poll<io::Result<mio::Ready>> {
+        self.io.poll_read_ready(waker)
     }
 
     /// Check the UDP socket's write readiness state.
@@ -201,8 +201,8 @@ impl UdpSocket {
     ///
     /// The I/O resource will remain in a write-ready state until calls to
     /// `poll_send` return `Pending`.
-    pub fn poll_write_ready(&self, lw: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
-        self.io.poll_write_ready(lw)
+    pub fn poll_write_ready(&self, waker: &Waker) -> Poll<io::Result<mio::Ready>> {
+        self.io.poll_write_ready(waker)
     }
 
     /// Gets the value of the `SO_BROADCAST` option for this socket.
@@ -399,9 +399,9 @@ pub struct SendTo<'a, 'b> {
 impl<'a, 'b> Future for SendTo<'a, 'b> {
     type Output = io::Result<usize>;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         let SendTo { socket, buf, target } = &mut *self;
-        socket.poll_send_to(lw, buf, target)
+        socket.poll_send_to(waker, buf, target)
     }
 }
 
@@ -415,8 +415,8 @@ pub struct RecvFrom<'a, 'b> {
 impl<'a, 'b> Future for RecvFrom<'a, 'b> {
     type Output = io::Result<(usize, SocketAddr)>;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         let RecvFrom { socket, buf } = &mut *self;
-        socket.poll_recv_from(lw, buf)
+        socket.poll_recv_from(waker, buf)
     }
 }

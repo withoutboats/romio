@@ -1,6 +1,6 @@
 use crate::reactor::PollEvented;
 
-use futures::task::LocalWaker;
+use futures::task::Waker;
 use futures::{ready, Poll};
 use mio::Ready;
 use mio_uds;
@@ -79,13 +79,13 @@ impl UnixDatagram {
     }
 
     /// Test whether this socket is ready to be read or not.
-    pub fn poll_read_ready(&self, lw: &LocalWaker) -> Poll<io::Result<Ready>> {
-        self.io.poll_read_ready(lw)
+    pub fn poll_read_ready(&self, waker: &Waker) -> Poll<io::Result<Ready>> {
+        self.io.poll_read_ready(waker)
     }
 
     /// Test whether this socket is ready to be written to or not.
-    pub fn poll_write_ready(&self, lw: &LocalWaker) -> Poll<io::Result<Ready>> {
-        self.io.poll_write_ready(lw)
+    pub fn poll_write_ready(&self, waker: &Waker) -> Poll<io::Result<Ready>> {
+        self.io.poll_write_ready(waker)
     }
 
     /// Returns the local address that this socket is bound to.
@@ -127,15 +127,15 @@ impl UnixDatagram {
     /// whence the data came.
     pub fn poll_recv_from(
         &self,
-        lw: &LocalWaker,
+        waker: &Waker,
         buf: &mut [u8],
     ) -> Poll<io::Result<(usize, SocketAddr)>> {
-        ready!(self.io.poll_read_ready(lw)?);
+        ready!(self.io.poll_read_ready(waker)?);
 
         let r = self.io.get_ref().recv_from(buf);
 
         if is_wouldblock(&r) {
-            self.io.clear_read_ready(lw)?;
+            self.io.clear_read_ready(waker)?;
             Poll::Pending
         } else {
             Poll::Ready(r)
@@ -147,16 +147,16 @@ impl UnixDatagram {
     /// On success, returns the number of bytes written.
     pub fn poll_send_to(
         &self,
-        lw: &LocalWaker,
+        waker: &Waker,
         buf: &[u8],
         path: impl AsRef<Path>,
     ) -> Poll<io::Result<usize>> {
-        ready!(self.io.poll_write_ready(lw)?);
+        ready!(self.io.poll_write_ready(waker)?);
 
         let r = self.io.get_ref().send_to(buf, path);
 
         if is_wouldblock(&r) {
-            self.io.clear_write_ready(lw)?;
+            self.io.clear_write_ready(waker)?;
             Poll::Pending
         } else {
             Poll::Ready(r)

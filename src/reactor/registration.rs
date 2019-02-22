@@ -1,6 +1,6 @@
 use super::{Direction, HandlePriv};
 
-use futures::task::LocalWaker;
+use futures::task::Waker;
 use futures::Poll;
 use mio::{self, Evented};
 
@@ -65,7 +65,7 @@ struct Inner {
 #[derive(Debug)]
 struct Node {
     direction: Direction,
-    waker: *const LocalWaker,
+    waker: *const Waker,
     next: *mut Node,
 }
 
@@ -248,8 +248,8 @@ impl Registration {
     /// # Panics
     ///
     /// This function will panic if called from outside of a task context.
-    pub fn poll_read_ready(&self, lw: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
-        match self.poll_ready(Some(lw), Direction::Read) {
+    pub fn poll_read_ready(&self, waker: &Waker) -> Poll<io::Result<mio::Ready>> {
+        match self.poll_ready(Some(waker), Direction::Read) {
             Ok(Some(v)) => Poll::Ready(Ok(v)),
             Ok(None) => Poll::Pending,
             Err(e) => Poll::Ready(Err(e)),
@@ -299,8 +299,8 @@ impl Registration {
     /// # Panics
     ///
     /// This function will panic if called from outside of a task context.
-    pub fn poll_write_ready(&self, lw: &LocalWaker) -> Poll<io::Result<mio::Ready>> {
-        match self.poll_ready(Some(lw), Direction::Write) {
+    pub fn poll_write_ready(&self, waker: &Waker) -> Poll<io::Result<mio::Ready>> {
+        match self.poll_ready(Some(waker), Direction::Write) {
             Ok(Some(v)) => Poll::Ready(Ok(v)),
             Ok(None) => Poll::Pending,
             Err(e) => Poll::Ready(Err(e)),
@@ -320,7 +320,7 @@ impl Registration {
 
     fn poll_ready(
         &self,
-        lw: Option<&LocalWaker>,
+        waker: Option<&Waker>,
         direction: Direction,
     ) -> io::Result<Option<mio::Ready>> {
         let mut state = self.state.load(SeqCst);
@@ -339,23 +339,23 @@ impl Registration {
                 }
                 READY => {
                     let inner = unsafe { (*self.inner.get()).as_ref().unwrap() };
-                    return inner.poll_ready(lw, direction);
+                    return inner.poll_ready(waker, direction);
                 }
                 LOCKED => {
-                    if lw.is_none() {
+                    if waker.is_none() {
                         // Skip the notification tracking junk.
                         return Ok(None);
                     }
 
                     let next_ptr = (state & !LIFECYCLE_MASK) as *mut Node;
 
-                    let lw = lw.unwrap();
+                    let waker = waker.unwrap();
 
                     // Get the node
                     let mut n = node.take().unwrap_or_else(|| {
                         Box::new(Node {
                             direction,
-                            waker: lw as *const LocalWaker,
+                            waker: waker as *const Waker,
                             next: ptr::null_mut(),
                         })
                     });
@@ -414,21 +414,21 @@ impl Inner {
         (inner, res)
     }
 
-    fn register(&self, lw: &LocalWaker, direction: Direction) {
+    fn register(&self, waker: &Waker, direction: Direction) {
         if self.token == ERROR {
-            lw.wake();
+            waker.wake();
             return;
         }
 
         let inner = match self.handle.inner() {
             Some(inner) => inner,
             None => {
-                lw.wake();
+                waker.wake();
                 return;
             }
         };
 
-        inner.register(lw, self.token, direction);
+        inner.register(waker, self.token, direction);
     }
 
     fn deregister<E: Evented>(&self, io: &E) -> io::Result<()> {
@@ -449,7 +449,7 @@ impl Inner {
 
     fn poll_ready(
         &self,
-        lw: Option<&LocalWaker>,
+        waker: Option<&Waker>,
         direction: Direction,
     ) -> io::Result<Option<mio::Ready>> {
         if self.token == ERROR {
@@ -481,12 +481,12 @@ impl Inner {
         let mut ready =
             mask & mio::Ready::from_usize(sched.readiness.fetch_and(!mask_no_hup, SeqCst));
 
-        if ready.is_empty() && lw.is_some() {
-            let lw = lw.unwrap();
+        if ready.is_empty() && waker.is_some() {
+            let waker = waker.unwrap();
             // Update the task info
             match direction {
-                Direction::Read => sched.reader.register(lw),
-                Direction::Write => sched.writer.register(lw),
+                Direction::Read => sched.reader.register(waker),
+                Direction::Write => sched.writer.register(waker),
             }
 
             // Try again

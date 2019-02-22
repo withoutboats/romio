@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro)]
+#![feature(async_await, await_macro, futures_api)]
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::thread;
