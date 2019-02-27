@@ -574,55 +574,28 @@ impl Future for ConnectFuture {
     type Output = io::Result<TcpStream>;
 
     fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<io::Result<TcpStream>> {
-        Pin::new(&mut self.inner).poll(waker)
-    }
-}
+        match mem::replace(&mut self.inner, ConnectFutureState::Empty) {
+            ConnectFutureState::Waiting(stream) => {
+                // Once we've connected, wait for the stream to be writable as
+                // that's when the actual connection has been initiated. Once we're
+                // writable we check for `take_socket_error` to see if the connect
+                // actually hit an error or not.
+                //
+                // If all that succeeded then we ship everything on up.
+                if let Poll::Pending = stream.io.poll_write_ready(waker)? {
+                    self.inner = ConnectFutureState::Waiting(stream);
+                    return Poll::Pending;
+                }
 
-impl ConnectFutureState {
-    fn poll_inner<F>(&mut self, f: F) -> Poll<io::Result<TcpStream>>
-    where
-        F: FnOnce(&mut PollEvented<mio::net::TcpStream>) -> Poll<io::Result<mio::Ready>>,
-    {
-        {
-            let stream = match *self {
-                ConnectFutureState::Waiting(ref mut s) => s,
-                ConnectFutureState::Error(_) => {
-                    let e = match mem::replace(self, ConnectFutureState::Empty) {
-                        ConnectFutureState::Error(e) => e,
-                        _ => panic!(),
-                    };
+                if let Some(e) = stream.io.get_ref().take_error()? {
                     return Poll::Ready(Err(e));
                 }
-                ConnectFutureState::Empty => panic!("can't poll TCP stream twice"),
-            };
 
-            // Once we've connected, wait for the stream to be writable as
-            // that's when the actual connection has been initiated. Once we're
-            // writable we check for `take_socket_error` to see if the connect
-            // actually hit an error or not.
-            //
-            // If all that succeeded then we ship everything on up.
-            if let Poll::Pending = f(&mut stream.io)? {
-                return Poll::Pending;
+                Poll::Ready(Ok(stream))
             }
-
-            if let Some(e) = stream.io.get_ref().take_error()? {
-                return Poll::Ready(Err(e));
-            }
+            ConnectFutureState::Error(e)        => Poll::Ready(Err(e)),
+            ConnectFutureState::Empty           => panic!("can't poll TCP stream twice"),
         }
-
-        match mem::replace(self, ConnectFutureState::Empty) {
-            ConnectFutureState::Waiting(stream) => Poll::Ready(Ok(stream)),
-            _ => panic!(),
-        }
-    }
-}
-
-impl Future for ConnectFutureState {
-    type Output = io::Result<TcpStream>;
-
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<io::Result<TcpStream>> {
-        self.poll_inner(|io| io.poll_write_ready(waker))
     }
 }
 
