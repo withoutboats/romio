@@ -194,7 +194,9 @@ impl TcpListener {
         self.io.get_ref().set_ttl(ttl)
     }
 
-    fn poll_accept(&mut self, waker: &Waker) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
+    /// Attempt to accept a connection and create a new connected `TcpStream` if
+    /// successful.
+    pub fn poll_accept(&mut self, waker: &Waker) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
         let (io, addr) = ready!(self.poll_accept_std(waker)?);
 
         let io = mio::net::TcpStream::from_stream(io)?;
