@@ -63,6 +63,8 @@
 pub mod tcp;
 pub mod udp;
 
+pub use async_ready;
+
 #[cfg(unix)]
 pub mod uds;
 

@@ -2,11 +2,11 @@ use super::ucred::{self, UCred};
 
 use crate::reactor::PollEvented;
 
+use async_ready::{AsyncReadReady, AsyncWriteReady, TakeError};
 use futures::io::{AsyncRead, AsyncWrite};
 use futures::task::Waker;
 use futures::{ready, Future, Poll};
 use iovec::IoVec;
-use mio::Ready;
 
 use std::fmt;
 use std::io;
@@ -96,16 +96,6 @@ impl UnixStream {
         UnixStream { io }
     }
 
-    /// Test whether this socket is ready to be read or not.
-    pub fn poll_read_ready(&self, waker: &Waker) -> Poll<io::Result<Ready>> {
-        self.io.poll_read_ready(waker)
-    }
-
-    /// Test whether this socket is ready to be written to or not.
-    pub fn poll_write_ready(&self, waker: &Waker) -> Poll<io::Result<Ready>> {
-        self.io.poll_write_ready(waker)
-    }
-
     /// Returns the socket address of the local half of this connection.
     ///
     /// # Examples
@@ -157,25 +147,6 @@ impl UnixStream {
         ucred::get_peer_cred(self)
     }
 
-    /// Returns the value of the `SO_ERROR` option.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// #![feature(async_await, await_macro, futures_api)]
-    /// use romio::uds::UnixStream;
-    ///
-    /// # async fn run() -> std::io::Result<()> {
-    /// let stream = await!(UnixStream::connect("/tmp/sock"))?;
-    /// if let Ok(Some(err)) = stream.take_error() {
-    ///     println!("Got error: {:?}", err);
-    /// }
-    /// # Ok(()) }
-    /// ```
-    pub fn take_error(&self) -> io::Result<Option<io::Error>> {
-        self.io.get_ref().take_error()
-    }
-
     /// Shuts down the read, write, or both halves of this connection.
     ///
     /// This function will cause all pending and future I/O calls on the
@@ -194,6 +165,26 @@ impl UnixStream {
     /// ```
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         self.io.get_ref().shutdown(how)
+    }
+}
+
+impl AsyncReadReady for UnixStream {
+    type Ok = mio::Ready;
+    type Err = io::Error;
+
+    /// Test whether this socket is ready to be read or not.
+    fn poll_read_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.io.poll_read_ready(waker)
+    }
+}
+
+impl AsyncWriteReady for UnixStream {
+    type Ok = mio::Ready;
+    type Err = io::Error;
+
+    /// Test whether this socket is ready to be written to or not.
+    fn poll_write_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.io.poll_write_ready(waker)
     }
 }
 
@@ -275,6 +266,31 @@ impl<'a> AsyncWrite for &'a UnixStream {
 
     fn poll_close(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
         (&self.io).poll_close(waker)
+    }
+}
+
+impl TakeError for UnixStream {
+    type Ok = io::Error;
+    type Err = io::Error;
+
+    /// Returns the value of the `SO_ERROR` option.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use romio::uds::UnixStream;
+    /// use romio::async_ready::TakeError;
+    ///
+    /// # async fn run() -> std::io::Result<()> {
+    /// let stream = await!(UnixStream::connect("/tmp/sock"))?;
+    /// if let Ok(Some(err)) = stream.take_error() {
+    ///     println!("Got error: {:?}", err);
+    /// }
+    /// # Ok(()) }
+    /// ```
+    fn take_error(&self) -> Result<Option<Self::Ok>, Self::Err> {
+        self.io.get_ref().take_error()
     }
 }
 

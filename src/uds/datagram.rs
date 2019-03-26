@@ -1,8 +1,9 @@
 use crate::reactor::PollEvented;
 
+use async_datagram::AsyncDatagram;
+use async_ready::{AsyncReadReady, AsyncWriteReady, TakeError};
 use futures::task::Waker;
 use futures::{ready, Poll};
-use mio::Ready;
 use mio_uds;
 
 use std::fmt;
@@ -10,7 +11,7 @@ use std::io;
 use std::net::Shutdown;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::os::unix::net::SocketAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// An I/O object representing a Unix datagram socket.
 pub struct UnixDatagram {
@@ -78,16 +79,6 @@ impl UnixDatagram {
         Ok(UnixDatagram::new(socket))
     }
 
-    /// Test whether this socket is ready to be read or not.
-    pub fn poll_read_ready(&self, waker: &Waker) -> Poll<io::Result<Ready>> {
-        self.io.poll_read_ready(waker)
-    }
-
-    /// Test whether this socket is ready to be written to or not.
-    pub fn poll_write_ready(&self, waker: &Waker) -> Poll<io::Result<Ready>> {
-        self.io.poll_write_ready(waker)
-    }
-
     /// Returns the local address that this socket is bound to.
     /// # Examples
     ///
@@ -121,66 +112,6 @@ impl UnixDatagram {
         self.io.get_ref().peer_addr()
     }
 
-    /// Receives data from the socket.
-    ///
-    /// On success, returns the number of bytes read and the address from
-    /// whence the data came.
-    pub fn poll_recv_from(
-        &self,
-        waker: &Waker,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<(usize, SocketAddr)>> {
-        ready!(self.io.poll_read_ready(waker)?);
-
-        let r = self.io.get_ref().recv_from(buf);
-
-        if is_wouldblock(&r) {
-            self.io.clear_read_ready(waker)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(r)
-        }
-    }
-
-    /// Sends data on the socket to the specified address.
-    ///
-    /// On success, returns the number of bytes written.
-    pub fn poll_send_to(
-        &self,
-        waker: &Waker,
-        buf: &[u8],
-        path: impl AsRef<Path>,
-    ) -> Poll<io::Result<usize>> {
-        ready!(self.io.poll_write_ready(waker)?);
-
-        let r = self.io.get_ref().send_to(buf, path);
-
-        if is_wouldblock(&r) {
-            self.io.clear_write_ready(waker)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(r)
-        }
-    }
-
-    /// Returns the value of the `SO_ERROR` option.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// use romio::uds::UnixDatagram;
-    ///
-    /// # fn run() -> std::io::Result<()> {
-    /// let stream = UnixDatagram::bind("/tmp/sock")?;
-    /// if let Ok(Some(err)) = stream.take_error() {
-    ///     println!("Got error: {:?}", err);
-    /// }
-    /// # Ok(()) }
-    /// ```
-    pub fn take_error(&self) -> io::Result<Option<io::Error>> {
-        self.io.get_ref().take_error()
-    }
-
     /// Shut down the read, write, or both halves of this connection.
     ///
     /// This function will cause all pending and future I/O calls on the
@@ -200,6 +131,91 @@ impl UnixDatagram {
     /// ```
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         self.io.get_ref().shutdown(how)
+    }
+}
+
+impl AsyncDatagram for UnixDatagram {
+    type Sender = SocketAddr;
+    type Receiver = PathBuf;
+    type Err = io::Error;
+
+    fn poll_send_to(
+        &mut self,
+        waker: &Waker,
+        buf: &[u8],
+        receiver: &Self::Receiver,
+    ) -> Poll<io::Result<usize>> {
+        ready!(self.io.poll_write_ready(waker)?);
+
+        match self.io.get_ref().send_to(buf, receiver) {
+            Ok(n) => Poll::Ready(Ok(n)),
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                self.io.clear_write_ready(waker)?;
+                Poll::Pending
+            }
+            Err(e) => Poll::Ready(Err(e)),
+        }
+    }
+
+    fn poll_recv_from(
+        &mut self,
+        waker: &Waker,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<(usize, Self::Sender)>> {
+        ready!(self.io.poll_read_ready(waker)?);
+
+        let r = self.io.get_ref().recv_from(buf);
+
+        if is_wouldblock(&r) {
+            self.io.clear_read_ready(waker)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(r)
+        }
+    }
+}
+
+impl AsyncReadReady for UnixDatagram {
+    type Ok = mio::Ready;
+    type Err = io::Error;
+
+    /// Test whether this socket is ready to be read or not.
+    fn poll_read_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.io.poll_read_ready(waker)
+    }
+}
+
+impl AsyncWriteReady for UnixDatagram {
+    type Ok = mio::Ready;
+    type Err = io::Error;
+
+    /// Test whether this socket is ready to be written to or not.
+    fn poll_write_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.io.poll_write_ready(waker)
+    }
+}
+
+impl TakeError for UnixDatagram {
+    type Ok = io::Error;
+    type Err = io::Error;
+
+    /// Returns the value of the `SO_ERROR` option.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use romio::async_ready::TakeError;
+    /// use romio::uds::UnixDatagram;
+    ///
+    /// # fn run() -> std::io::Result<()> {
+    /// let stream = UnixDatagram::bind("/tmp/sock")?;
+    /// if let Ok(Some(err)) = stream.take_error() {
+    ///     println!("Got error: {:?}", err);
+    /// }
+    /// # Ok(()) }
+    /// ```
+    fn take_error(&self) -> Result<Option<Self::Ok>, Self::Err> {
+        self.io.get_ref().take_error()
     }
 }
 

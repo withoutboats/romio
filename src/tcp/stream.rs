@@ -5,6 +5,7 @@ use std::net::{Shutdown, SocketAddr};
 use std::pin::Pin;
 use std::time::Duration;
 
+use async_ready::{AsyncReadReady, AsyncWriteReady};
 use futures::io::{AsyncRead, AsyncWrite};
 use futures::task::Waker;
 use futures::{ready, Future, Poll};
@@ -81,35 +82,6 @@ impl TcpStream {
     pub(crate) fn new(connected: mio::net::TcpStream) -> TcpStream {
         let io = PollEvented::new(connected);
         TcpStream { io }
-    }
-
-    /// Poll the TCP stream's readiness for reading.
-    ///
-    /// If the stream is not ready for a read then the method will return `Poll::Pending`
-    /// and schedule the current task for wakeup upon read-readiness.
-    ///
-    /// Once the stream is ready for reading, it will remain so until all available
-    /// bytes have been extracted (via `futures::io::AsyncRead` and related traits).
-    pub fn poll_read_ready(&self, waker: &Waker) -> Poll<io::Result<mio::Ready>> {
-        self.io.poll_read_ready(waker)
-    }
-
-    /// Check the TCP stream's write readiness state.
-    ///
-    /// This always checks for writable readiness and also checks for HUP
-    /// readiness on platforms that support it.
-    ///
-    /// If the resource is not ready for a write then `Poll::Pending` is
-    /// returned and the current task is notified once a new event is received.
-    ///
-    /// The I/O resource will remain in a write-ready state until calls to
-    /// `poll_write` return `NotReady`.
-    ///
-    /// # Panics
-    ///
-    /// This function panics if called from outside of a task context.
-    pub fn poll_write_ready(&self, waker: &Waker) -> Poll<io::Result<mio::Ready>> {
-        self.io.poll_write_ready(waker)
     }
 
     /// Returns the local address that this stream is bound to.
@@ -561,6 +533,45 @@ impl<'a> AsyncWrite for &'a TcpStream {
 
     fn poll_close(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
         (&self.io).poll_close(waker)
+    }
+}
+
+impl AsyncReadReady for TcpStream {
+    type Ok = mio::Ready;
+    type Err = io::Error;
+
+    /// Poll the TCP stream's readiness for reading.
+    ///
+    /// If the stream is not ready for a read then the method will return `Poll::Pending`
+    /// and schedule the current task for wakeup upon read-readiness.
+    ///
+    /// Once the stream is ready for reading, it will remain so until all available
+    /// bytes have been extracted (via `futures::io::AsyncRead` and related traits).
+    fn poll_read_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.io.poll_read_ready(waker)
+    }
+}
+
+impl AsyncWriteReady for TcpStream {
+    type Ok = mio::Ready;
+    type Err = io::Error;
+
+    /// Check the TCP stream's write readiness state.
+    ///
+    /// This always checks for writable readiness and also checks for HUP
+    /// readiness on platforms that support it.
+    ///
+    /// If the resource is not ready for a write then `Poll::Pending` is
+    /// returned and the current task is notified once a new event is received.
+    ///
+    /// The I/O resource will remain in a write-ready state until calls to
+    /// `poll_write` return `NotReady`.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if called from outside of a task context.
+    fn poll_write_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.io.poll_write_ready(waker)
     }
 }
 
