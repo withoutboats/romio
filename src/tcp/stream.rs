@@ -610,6 +610,24 @@ impl Future for ConnectFuture {
     }
 }
 
+impl std::convert::TryFrom<std::net::TcpStream> for TcpStream {
+    type Error = io::Error;
+
+    fn try_from(stream: std::net::TcpStream) -> Result<Self, Self::Error> {
+        let tcp = mio::net::TcpStream::from_stream(stream)?;
+        Ok(TcpStream::new(tcp))
+    }
+}
+
+impl std::convert::TryFrom<&std::net::SocketAddr> for TcpStream {
+    type Error = io::Error;
+
+    fn try_from(addr: &std::net::SocketAddr) -> Result<Self, Self::Error> {
+        let tcp = mio::net::TcpStream::connect(&addr)?;
+        Ok(TcpStream::new(tcp))
+    }
+}
+
 #[cfg(unix)]
 mod sys {
     use super::TcpStream;
