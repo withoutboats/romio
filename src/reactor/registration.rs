@@ -41,7 +41,7 @@ use std::{io, ptr, usize};
 /// [`poll_read_ready`]: #method.poll_read_ready`]
 /// [`poll_write_ready`]: #method.poll_write_ready`]
 #[derive(Debug)]
-pub struct Registration {
+pub(crate) struct Registration {
     /// Stores the handle. Once set, the value is not changed.
     ///
     /// Setting this requires acquiring the lock from state.

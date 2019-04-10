@@ -1,4 +1,7 @@
-use super::Registration;
+//! Polling API bindings
+
+use crate::reactor::platform;
+use crate::reactor::registration::Registration;
 
 use futures::io::{AsyncRead, AsyncWrite};
 use futures::task::Waker;
@@ -165,7 +168,7 @@ where
 
         // Load cached & encoded readiness.
         let mut cached = self.inner.read_readiness.load(Relaxed);
-        let mask = mio::Ready::readable() | super::platform::hup();
+        let mask = mio::Ready::readable() | platform::hup();
 
         // See if the current readiness matches any bits.
         let mut ret = mio::Ready::from_usize(cached) & mio::Ready::readable();
@@ -244,7 +247,7 @@ where
 
         // Load cached & encoded readiness.
         let mut cached = self.inner.write_readiness.load(Relaxed);
-        let mask = mio::Ready::writable() | super::platform::hup();
+        let mask = mio::Ready::writable() | platform::hup();
 
         // See if the current readiness matches any bits.
         let mut ret = mio::Ready::from_usize(cached) & mio::Ready::writable();

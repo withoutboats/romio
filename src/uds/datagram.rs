@@ -1,4 +1,4 @@
-use crate::reactor::PollEvented;
+use crate::raw::PollEvented;
 
 use async_datagram::AsyncDatagram;
 use async_ready::{AsyncReadReady, AsyncWriteReady, TakeError};

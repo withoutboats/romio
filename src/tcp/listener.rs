@@ -11,7 +11,7 @@ use futures::task::Waker;
 use futures::{ready, Poll};
 use mio;
 
-use crate::reactor::PollEvented;
+use crate::raw::PollEvented;
 
 /// A TCP socket server, listening for connections.
 ///

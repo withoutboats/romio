@@ -12,7 +12,7 @@ use futures::{ready, Future, Poll};
 use iovec::IoVec;
 use mio;
 
-use crate::reactor::PollEvented;
+use crate::raw::PollEvented;
 
 /// A TCP stream between a local and a remote socket.
 ///
@@ -604,8 +604,8 @@ impl Future for ConnectFuture {
 
                 Poll::Ready(Ok(stream))
             }
-            ConnectFutureState::Error(e)        => Poll::Ready(Err(e)),
-            ConnectFutureState::Empty           => panic!("can't poll TCP stream twice"),
+            ConnectFutureState::Error(e) => Poll::Ready(Err(e)),
+            ConnectFutureState::Empty => panic!("can't poll TCP stream twice"),
         }
     }
 }

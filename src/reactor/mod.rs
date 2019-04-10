@@ -1,13 +1,11 @@
 pub(crate) mod background;
-mod poll_evented;
-mod registration;
+pub(crate) mod registration;
 mod sharded_rwlock;
 
 // ===== Public re-exports =====
 
 use self::background::Background;
-pub use self::poll_evented::PollEvented;
-use self::registration::Registration;
+pub use crate::raw::PollEvented;
 
 // ===== Private imports =====
 
@@ -551,7 +549,7 @@ impl Direction {
 }
 
 #[cfg(unix)]
-mod platform {
+pub(crate) mod platform {
     use mio::unix::UnixReady;
     use mio::Ready;
 
@@ -565,7 +563,7 @@ mod platform {
 }
 
 #[cfg(windows)]
-mod platform {
+pub(crate) mod platform {
     use mio::Ready;
 
     pub fn hup() -> Ready {

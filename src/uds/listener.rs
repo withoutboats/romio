@@ -1,6 +1,6 @@
 use super::UnixStream;
 
-use crate::reactor::PollEvented;
+use crate::raw::PollEvented;
 
 use async_ready::{AsyncReady, TakeError};
 use futures::task::Waker;

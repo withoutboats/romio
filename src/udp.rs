@@ -23,7 +23,7 @@ use futures::Future;
 use futures::{ready, Poll};
 use mio;
 
-use crate::reactor::PollEvented;
+use crate::raw::PollEvented;
 
 /// A UDP socket.
 pub struct UdpSocket {
@@ -107,7 +107,11 @@ impl UdpSocket {
     /// # }
     /// ```
     pub fn send_to<'a, 'b>(&'a mut self, buf: &'b [u8], target: &'b SocketAddr) -> SendTo<'a, 'b> {
-        SendTo { buf, target, socket: self }
+        SendTo {
+            buf,
+            target,
+            socket: self,
+        }
     }
 
     /// Receives data from the socket. On success, returns the number of bytes
@@ -401,7 +405,11 @@ impl<'a, 'b> Future for SendTo<'a, 'b> {
     type Output = io::Result<usize>;
 
     fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
-        let SendTo { socket, buf, target } = &mut *self;
+        let SendTo {
+            socket,
+            buf,
+            target,
+        } = &mut *self;
         socket.poll_send_to(waker, buf, target)
     }
 }

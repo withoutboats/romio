@@ -1,6 +1,6 @@
 use super::ucred::{self, UCred};
 
-use crate::reactor::PollEvented;
+use crate::raw::PollEvented;
 
 use async_ready::{AsyncReadReady, AsyncWriteReady, TakeError};
 use futures::io::{AsyncRead, AsyncWrite};

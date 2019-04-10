@@ -68,6 +68,8 @@ pub use async_ready;
 #[cfg(unix)]
 pub mod uds;
 
+pub mod raw;
+
 mod reactor;
 
 #[doc(inline)]
