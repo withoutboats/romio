@@ -2,10 +2,10 @@
 
 use std::io;
 
-use futures::StreamExt;
 use futures::executor::{self, ThreadPool};
 use futures::io::AsyncWriteExt;
-use futures::task::{SpawnExt};
+use futures::task::SpawnExt;
+use futures::StreamExt;
 
 use rand::seq::SliceRandom;
 
@@ -35,13 +35,15 @@ fn main() -> io::Result<()> {
             let stream = stream?;
             let addr = stream.peer_addr()?;
 
-            threadpool.spawn(async move {
-                println!("Accepting stream from: {}", addr);
+            threadpool
+                .spawn(async move {
+                    println!("Accepting stream from: {}", addr);
 
-                await!(recite_shakespeare(stream)).unwrap();
+                    await!(recite_shakespeare(stream)).unwrap();
 
-                println!("Closing stream from: {}", addr);
-            }).unwrap();
+                    println!("Closing stream from: {}", addr);
+                })
+                .unwrap();
         }
 
         Ok(())

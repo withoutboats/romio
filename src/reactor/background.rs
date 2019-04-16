@@ -1,6 +1,6 @@
 use super::{Handle, Reactor};
 
-use futures::task::{AtomicWaker, Waker};
+use futures::task::AtomicWaker;
 use futures::{executor, Future, Poll};
 use log::debug;
 
@@ -9,6 +9,7 @@ use std::pin::Pin;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::Arc;
+use std::task::Context;
 use std::thread;
 
 /// Handle to the reactor running on a background thread.
@@ -107,8 +108,8 @@ impl Drop for Background {
 impl Future for Shutdown {
     type Output = Result<(), ()>;
 
-    fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
-        self.inner.shared.shutdown_task.register(waker);
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.inner.shared.shutdown_task.register(&cx.waker());
 
         if !self.inner.is_shutdown() {
             return Poll::Pending;

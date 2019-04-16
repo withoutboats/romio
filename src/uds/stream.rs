@@ -4,7 +4,6 @@ use crate::raw::PollEvented;
 
 use async_ready::{AsyncReadReady, AsyncWriteReady, TakeError};
 use futures::io::{AsyncRead, AsyncWrite};
-use futures::task::Waker;
 use futures::{ready, Future, Poll};
 use iovec::IoVec;
 
@@ -15,6 +14,7 @@ use std::os::unix::io::{AsRawFd, RawFd};
 use std::os::unix::net::SocketAddr;
 use std::path::Path;
 use std::pin::Pin;
+use std::task::Context;
 
 /// A structure representing a connected Unix socket.
 ///
@@ -38,6 +38,8 @@ enum State {
     Error(io::Error),
     Empty,
 }
+
+impl Unpin for UnixStream {}
 
 impl UnixStream {
     /// Connects to the socket named by `path`.
@@ -168,13 +170,77 @@ impl UnixStream {
     }
 }
 
+impl AsyncRead for UnixStream {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.io).poll_read(cx, buf)
+    }
+
+    fn poll_vectored_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &mut [&mut IoVec],
+    ) -> Poll<io::Result<usize>> {
+        ready!(Pin::new(&mut *self).poll_read_ready(cx)?);
+
+        let r = self.io.get_ref().read_bufs(bufs);
+
+        if is_wouldblock(&r) {
+            Pin::new(&mut self.io).clear_read_ready(cx)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(r)
+        }
+    }
+}
+
+impl AsyncWrite for UnixStream {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.io).poll_write(cx, buf)
+    }
+
+    fn poll_vectored_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[&IoVec],
+    ) -> Poll<io::Result<usize>> {
+        ready!(Pin::new(&mut *self).poll_write_ready(cx)?);
+
+        let r = self.io.get_ref().write_bufs(bufs);
+
+        if is_wouldblock(&r) {
+            Pin::new(&mut self.io).clear_write_ready(cx)?;
+        }
+
+        return Poll::Ready(r);
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.io).poll_flush(cx)
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.io).poll_close(cx)
+    }
+}
+
 impl AsyncReadReady for UnixStream {
     type Ok = mio::Ready;
     type Err = io::Error;
 
     /// Test whether this socket is ready to be read or not.
-    fn poll_read_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
-        self.io.poll_read_ready(waker)
+    fn poll_read_ready(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        Pin::new(&mut self.io).poll_read_ready(cx)
     }
 }
 
@@ -183,89 +249,11 @@ impl AsyncWriteReady for UnixStream {
     type Err = io::Error;
 
     /// Test whether this socket is ready to be written to or not.
-    fn poll_write_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
-        self.io.poll_write_ready(waker)
-    }
-}
-
-impl AsyncRead for UnixStream {
-    fn poll_read(&mut self, waker: &Waker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
-        <&UnixStream>::poll_read(&mut &*self, waker, buf)
-    }
-
-    fn poll_vectored_read(
-        &mut self,
-        waker: &Waker,
-        vec: &mut [&mut IoVec],
-    ) -> Poll<io::Result<usize>> {
-        <&UnixStream>::poll_vectored_read(&mut &*self, waker, vec)
-    }
-}
-
-impl AsyncWrite for UnixStream {
-    fn poll_write(&mut self, waker: &Waker, buf: &[u8]) -> Poll<io::Result<usize>> {
-        <&UnixStream>::poll_write(&mut &*self, waker, buf)
-    }
-
-    fn poll_vectored_write(&mut self, waker: &Waker, vec: &[&IoVec]) -> Poll<io::Result<usize>> {
-        <&UnixStream>::poll_vectored_write(&mut &*self, waker, vec)
-    }
-
-    fn poll_flush(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
-        <&UnixStream>::poll_flush(&mut &*self, waker)
-    }
-
-    fn poll_close(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
-        <&UnixStream>::poll_close(&mut &*self, waker)
-    }
-}
-
-impl<'a> AsyncRead for &'a UnixStream {
-    fn poll_read(&mut self, waker: &Waker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
-        (&self.io).poll_read(waker, buf)
-    }
-
-    fn poll_vectored_read(
-        &mut self,
-        waker: &Waker,
-        bufs: &mut [&mut IoVec],
-    ) -> Poll<io::Result<usize>> {
-        ready!(self.poll_read_ready(waker)?);
-
-        let r = self.io.get_ref().read_bufs(bufs);
-
-        if is_wouldblock(&r) {
-            self.io.clear_read_ready(waker)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(r)
-        }
-    }
-}
-
-impl<'a> AsyncWrite for &'a UnixStream {
-    fn poll_write(&mut self, waker: &Waker, buf: &[u8]) -> Poll<io::Result<usize>> {
-        (&self.io).poll_write(waker, buf)
-    }
-
-    fn poll_vectored_write(&mut self, waker: &Waker, bufs: &[&IoVec]) -> Poll<io::Result<usize>> {
-        ready!(self.poll_write_ready(waker)?);
-
-        let r = self.io.get_ref().write_bufs(bufs);
-
-        if is_wouldblock(&r) {
-            self.io.clear_write_ready(waker)?;
-        }
-
-        return Poll::Ready(r);
-    }
-
-    fn poll_flush(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
-        (&self.io).poll_flush(waker)
-    }
-
-    fn poll_close(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
-        (&self.io).poll_close(waker)
+    fn poll_write_ready(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        Pin::new(&mut self.io).poll_write_ready(cx)
     }
 }
 
@@ -309,12 +297,12 @@ impl AsRawFd for UnixStream {
 impl Future for ConnectFuture {
     type Output = io::Result<UnixStream>;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<io::Result<UnixStream>> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<UnixStream>> {
         use std::mem;
 
         match self.inner {
             State::Waiting(ref mut stream) => {
-                ready!(stream.io.poll_write_ready(waker)?);
+                ready!(stream.io.poll_write_ready(cx)?);
 
                 if let Some(e) = stream.io.get_ref().take_error()? {
                     return Poll::Ready(Err(e));

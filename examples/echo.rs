@@ -2,10 +2,10 @@
 
 use std::io;
 
-use futures::StreamExt;
 use futures::executor::{self, ThreadPool};
 use futures::io::AsyncReadExt;
-use futures::task::{SpawnExt};
+use futures::task::SpawnExt;
+use futures::StreamExt;
 
 use romio::{TcpListener, TcpStream};
 
@@ -22,13 +22,15 @@ fn main() -> io::Result<()> {
             let stream = stream?;
             let addr = stream.peer_addr()?;
 
-            threadpool.spawn(async move {
-                println!("Accepting stream from: {}", addr);
+            threadpool
+                .spawn(async move {
+                    println!("Accepting stream from: {}", addr);
 
-                await!(echo_on(stream)).unwrap();
+                    await!(echo_on(stream)).unwrap();
 
-                println!("Closing stream from: {}", addr);
-            }).unwrap();
+                    println!("Closing stream from: {}", addr);
+                })
+                .unwrap();
         }
 
         Ok(())

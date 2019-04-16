@@ -2,7 +2,6 @@ use crate::raw::PollEvented;
 
 use async_datagram::AsyncDatagram;
 use async_ready::{AsyncReadReady, AsyncWriteReady, TakeError};
-use futures::task::Waker;
 use futures::{ready, Poll};
 use mio_uds;
 
@@ -12,6 +11,8 @@ use std::net::Shutdown;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::os::unix::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
+use std::task::Context;
 
 /// An I/O object representing a Unix datagram socket.
 pub struct UnixDatagram {
@@ -140,17 +141,17 @@ impl AsyncDatagram for UnixDatagram {
     type Err = io::Error;
 
     fn poll_send_to(
-        &mut self,
-        waker: &Waker,
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
         buf: &[u8],
         receiver: &Self::Receiver,
     ) -> Poll<io::Result<usize>> {
-        ready!(self.io.poll_write_ready(waker)?);
+        ready!(self.io.poll_write_ready(cx)?);
 
         match self.io.get_ref().send_to(buf, receiver) {
             Ok(n) => Poll::Ready(Ok(n)),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_write_ready(waker)?;
+                Pin::new(&mut self.io).clear_write_ready(cx)?;
                 Poll::Pending
             }
             Err(e) => Poll::Ready(Err(e)),
@@ -158,16 +159,16 @@ impl AsyncDatagram for UnixDatagram {
     }
 
     fn poll_recv_from(
-        &mut self,
-        waker: &Waker,
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<(usize, Self::Sender)>> {
-        ready!(self.io.poll_read_ready(waker)?);
+        ready!(Pin::new(&mut self.io).poll_read_ready(cx)?);
 
         let r = self.io.get_ref().recv_from(buf);
 
         if is_wouldblock(&r) {
-            self.io.clear_read_ready(waker)?;
+            Pin::new(&mut self.io).clear_read_ready(cx)?;
             Poll::Pending
         } else {
             Poll::Ready(r)
@@ -180,8 +181,11 @@ impl AsyncReadReady for UnixDatagram {
     type Err = io::Error;
 
     /// Test whether this socket is ready to be read or not.
-    fn poll_read_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
-        self.io.poll_read_ready(waker)
+    fn poll_read_ready(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        Pin::new(&mut self.io).poll_read_ready(cx)
     }
 }
 
@@ -190,8 +194,11 @@ impl AsyncWriteReady for UnixDatagram {
     type Err = io::Error;
 
     /// Test whether this socket is ready to be written to or not.
-    fn poll_write_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
-        self.io.poll_write_ready(waker)
+    fn poll_write_ready(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        Pin::new(&mut self.io).poll_write_ready(cx)
     }
 }
 

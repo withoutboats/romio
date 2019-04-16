@@ -20,7 +20,7 @@ use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 use std::{fmt, usize};
 
-use futures::task::{AtomicWaker, Waker};
+use futures::task::{AtomicWaker, Context};
 use log::{debug, log_enabled, trace, Level};
 use mio::event::Evented;
 use slab::Slab;
@@ -505,7 +505,7 @@ impl Inner {
     }
 
     /// Registers interest in the I/O resource associated with `token`.
-    fn register(&self, waker: &Waker, token: usize, dir: Direction) {
+    fn register(&self, cx: &mut Context<'_>, token: usize, dir: Direction) {
         debug!("scheduling direction for: {}", token);
         let io_dispatch = self.io_dispatch.read();
         let sched = io_dispatch.get(token).unwrap();
@@ -515,7 +515,7 @@ impl Inner {
             Direction::Write => (&sched.writer, mio::Ready::writable()),
         };
 
-        atomic_waker.register(waker);
+        atomic_waker.register(&cx.waker());
 
         if sched.readiness.load(SeqCst) & ready.as_usize() != 0 {
             atomic_waker.wake();

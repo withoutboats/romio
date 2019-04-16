@@ -4,12 +4,12 @@ use std::io::{Read, Write};
 use std::os::unix::net::UnixStream as StdStream;
 use std::thread;
 
-use std::task::Waker;
-use std::pin::Pin;
-use futures::future::{FutureObj, self};
+use futures::future::{self, FutureObj};
 use futures::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
-use futures::{Stream, StreamExt, Poll, executor};
+use futures::{executor, Poll, Stream, StreamExt};
 use log::{error, info};
+use std::pin::Pin;
+use std::task::Context;
 use tempdir::TempDir;
 
 use romio::uds::{UnixListener, UnixStream};
@@ -78,7 +78,7 @@ fn listener_writes() -> Result<(), Error> {
 }
 
 #[test]
-fn both_sides_async_using_threadpool() -> Result<(), Error>{
+fn both_sides_async_using_threadpool() -> Result<(), Error> {
     drop(env_logger::try_init());
     let tmp_dir = TempDir::new("both_sides_async")?;
     let file_path = tmp_dir.path().join("sock");
@@ -129,7 +129,7 @@ fn pair() -> Result<(), Error> {
 
 pub struct RomioReader {
     inner: UnixStream,
-    buffer: bytes::BytesMut
+    buffer: bytes::BytesMut,
 }
 
 impl Unpin for RomioReader {}
@@ -140,7 +140,7 @@ impl RomioReader {
         buff.resize(buff.capacity(), 0u8);
         RomioReader {
             inner: inner,
-            buffer: buff
+            buffer: buff,
         }
     }
 }
@@ -148,14 +148,14 @@ impl RomioReader {
 impl Stream for RomioReader {
     type Item = Vec<u8>;
 
-    fn poll_next(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = &mut *self;
-        match this.inner.poll_read(waker, this.buffer.as_mut()) {
+        match Pin::new(&mut this.inner).poll_read(cx, this.buffer.as_mut()) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Err(e)) => {
                 error!("Failed to poll_read {:?}", e);
                 Poll::Ready(None)
-            },
+            }
             Poll::Ready(Ok(bytes_read)) => {
                 info!("Read {} bytes", bytes_read);
                 if bytes_read == 0 {
@@ -184,7 +184,9 @@ fn reads_bytes() {
         let f = server.write_all(bytes);
         executor::block_on(f).expect("Failed to send");
         executor::block_on(server.close()).expect("Failed to close");
-    }).join().expect("Failed to send");
+    })
+    .join()
+    .expect("Failed to send");
 
     let buf: Vec<u8> = executor::block_on(async {
         let reader: RomioReader = client.into();

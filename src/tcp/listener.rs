@@ -4,10 +4,10 @@ use std::fmt;
 use std::io;
 use std::net::{self, SocketAddr};
 use std::pin::Pin;
+use std::task::Context;
 
 use async_ready::AsyncReady;
 use futures::stream::Stream;
-use futures::task::Waker;
 use futures::{ready, Poll};
 use mio;
 
@@ -195,13 +195,16 @@ impl TcpListener {
         self.io.get_ref().set_ttl(ttl)
     }
 
-    fn poll_accept_std(&self, waker: &Waker) -> Poll<io::Result<(net::TcpStream, SocketAddr)>> {
-        ready!(self.io.poll_read_ready(waker)?);
+    fn poll_accept_std(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<(net::TcpStream, SocketAddr)>> {
+        ready!(Pin::new(&mut self.io).poll_read_ready(cx)?);
 
-        match self.io.get_ref().accept_std() {
+        match Pin::new(&mut self.io).get_ref().accept_std() {
             Ok(pair) => Poll::Ready(Ok(pair)),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_read_ready(waker)?;
+                Pin::new(&mut self.io).clear_read_ready(cx)?;
                 Poll::Pending
             }
             Err(e) => Poll::Ready(Err(e)),
@@ -214,8 +217,8 @@ impl AsyncReady for TcpListener {
     type Err = std::io::Error;
 
     /// Check if the stream can be read from.
-    fn poll_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
-        let (io, addr) = ready!(self.poll_accept_std(waker)?);
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<Self::Ok, Self::Err>> {
+        let (io, addr) = ready!(self.poll_accept_std(cx)?);
         let io = mio::net::TcpStream::from_stream(io)?;
         let io = TcpStream::new(io);
         Poll::Ready(Ok((io, addr)))
@@ -251,8 +254,8 @@ pub struct Incoming<'a> {
 impl<'a> Stream for Incoming<'a> {
     type Item = io::Result<TcpStream>;
 
-    fn poll_next(self: Pin<&mut Self>, waker: &Waker) -> Poll<Option<Self::Item>> {
-        let (socket, _) = ready!(self.inner.poll_ready(waker)?);
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let (socket, _) = ready!(Pin::new(&mut *self.inner).poll_ready(cx)?);
         Poll::Ready(Some(Ok(socket)))
     }
 }

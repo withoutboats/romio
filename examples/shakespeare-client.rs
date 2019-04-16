@@ -3,7 +3,7 @@
 use std::io;
 
 use futures::executor;
-use futures::io::{AsyncReadExt, AllowStdIo};
+use futures::io::{AllowStdIo, AsyncReadExt};
 
 use romio::TcpStream;
 

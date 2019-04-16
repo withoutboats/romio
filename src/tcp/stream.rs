@@ -3,12 +3,12 @@ use std::io;
 use std::mem;
 use std::net::{Shutdown, SocketAddr};
 use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 use async_ready::{AsyncReadReady, AsyncWriteReady};
 use futures::io::{AsyncRead, AsyncWrite};
-use futures::task::Waker;
-use futures::{ready, Future, Poll};
+use futures::{ready, Future};
 use iovec::IoVec;
 use mio;
 
@@ -47,6 +47,8 @@ enum ConnectFutureState {
     Error(io::Error),
     Empty,
 }
+
+impl Unpin for TcpStream {}
 
 impl TcpStream {
     /// Create a new TCP stream connected to the specified address.
@@ -451,58 +453,26 @@ impl TcpStream {
     }
 }
 
-// ===== impl Read / Write =====
-
 impl AsyncRead for TcpStream {
-    fn poll_read(&mut self, waker: &Waker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
-        <&TcpStream>::poll_read(&mut &*self, waker, buf)
-    }
-
-    fn poll_vectored_read(
-        &mut self,
-        waker: &Waker,
-        vec: &mut [&mut IoVec],
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
-        <&TcpStream>::poll_vectored_read(&mut &*self, waker, vec)
-    }
-}
-
-impl AsyncWrite for TcpStream {
-    fn poll_write(&mut self, waker: &Waker, buf: &[u8]) -> Poll<io::Result<usize>> {
-        <&TcpStream>::poll_write(&mut &*self, waker, buf)
-    }
-
-    fn poll_vectored_write(&mut self, waker: &Waker, vec: &[&IoVec]) -> Poll<io::Result<usize>> {
-        <&TcpStream>::poll_vectored_write(&mut &*self, waker, vec)
-    }
-
-    fn poll_flush(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
-        <&TcpStream>::poll_flush(&mut &*self, waker)
-    }
-
-    fn poll_close(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
-        <&TcpStream>::poll_close(&mut &*self, waker)
-    }
-}
-
-// ===== impl Read / Write for &'a =====
-
-impl<'a> AsyncRead for &'a TcpStream {
-    fn poll_read(&mut self, waker: &Waker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
-        (&self.io).poll_read(waker, buf)
+        Pin::new(&mut self.io).poll_read(cx, buf)
     }
 
     fn poll_vectored_read(
-        &mut self,
-        waker: &Waker,
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
         bufs: &mut [&mut IoVec],
     ) -> Poll<io::Result<usize>> {
-        ready!(self.poll_read_ready(waker)?);
+        ready!(Pin::new(&mut *self).poll_read_ready(cx)?);
 
         let r = self.io.get_ref().read_bufs(bufs);
 
         if is_wouldblock(&r) {
-            self.io.clear_read_ready(waker)?;
+            Pin::new(&mut self.io).clear_read_ready(cx)?;
             Poll::Pending
         } else {
             Poll::Ready(r)
@@ -510,29 +480,37 @@ impl<'a> AsyncRead for &'a TcpStream {
     }
 }
 
-impl<'a> AsyncWrite for &'a TcpStream {
-    fn poll_write(&mut self, waker: &Waker, buf: &[u8]) -> Poll<io::Result<usize>> {
-        (&self.io).poll_write(waker, buf)
+impl AsyncWrite for TcpStream {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.io).poll_write(cx, buf)
     }
 
-    fn poll_vectored_write(&mut self, waker: &Waker, bufs: &[&IoVec]) -> Poll<io::Result<usize>> {
-        ready!(self.poll_write_ready(waker)?);
+    fn poll_vectored_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[&IoVec],
+    ) -> Poll<io::Result<usize>> {
+        ready!(Pin::new(&mut *self).poll_write_ready(cx)?);
 
         let r = self.io.get_ref().write_bufs(bufs);
 
         if is_wouldblock(&r) {
-            self.io.clear_write_ready(waker)?;
+            Pin::new(&mut self.io).clear_write_ready(cx)?;
         }
 
         return Poll::Ready(r);
     }
 
-    fn poll_flush(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
-        (&self.io).poll_flush(waker)
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.io).poll_flush(cx)
     }
 
-    fn poll_close(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
-        (&self.io).poll_close(waker)
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.io).poll_close(cx)
     }
 }
 
@@ -547,8 +525,11 @@ impl AsyncReadReady for TcpStream {
     ///
     /// Once the stream is ready for reading, it will remain so until all available
     /// bytes have been extracted (via `futures::io::AsyncRead` and related traits).
-    fn poll_read_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
-        self.io.poll_read_ready(waker)
+    fn poll_read_ready(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        Pin::new(&mut self.io).poll_read_ready(cx)
     }
 }
 
@@ -570,8 +551,11 @@ impl AsyncWriteReady for TcpStream {
     /// # Panics
     ///
     /// This function panics if called from outside of a task context.
-    fn poll_write_ready(&self, waker: &Waker) -> Poll<Result<Self::Ok, Self::Err>> {
-        self.io.poll_write_ready(waker)
+    fn poll_write_ready(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.io.poll_write_ready(cx)
     }
 }
 
@@ -584,7 +568,7 @@ impl fmt::Debug for TcpStream {
 impl Future for ConnectFuture {
     type Output = io::Result<TcpStream>;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<io::Result<TcpStream>> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<TcpStream>> {
         match mem::replace(&mut self.inner, ConnectFutureState::Empty) {
             ConnectFutureState::Waiting(stream) => {
                 // Once we've connected, wait for the stream to be writable as
@@ -593,7 +577,7 @@ impl Future for ConnectFuture {
                 // actually hit an error or not.
                 //
                 // If all that succeeded then we ship everything on up.
-                if let Poll::Pending = stream.io.poll_write_ready(waker)? {
+                if let Poll::Pending = stream.io.poll_write_ready(cx)? {
                     self.inner = ConnectFutureState::Waiting(stream);
                     return Poll::Pending;
                 }

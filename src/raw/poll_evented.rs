@@ -4,15 +4,16 @@ use crate::reactor::platform;
 use crate::reactor::registration::Registration;
 
 use futures::io::{AsyncRead, AsyncWrite};
-use futures::task::Waker;
 use futures::{ready, Poll};
 use mio;
 use mio::event::Evented;
 
 use std::fmt;
 use std::io::{self, Read, Write};
+use std::pin::Pin;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
+use std::task::Context;
 
 /// Associates an I/O resource that implements the [`std::io::Read`] and/or
 /// [`std::io::Write`] traits with the reactor that drives it.
@@ -94,6 +95,8 @@ pub struct PollEvented<E: Evented> {
     inner: Inner,
 }
 
+impl<E: Evented> Unpin for PollEvented<E> {}
+
 struct Inner {
     registration: Registration,
 
@@ -163,7 +166,10 @@ where
     /// cleared by calling [`clear_read_ready`].
     ///
     /// [`clear_read_ready`]: #method.clear_read_ready
-    pub fn poll_read_ready(&self, waker: &Waker) -> Poll<io::Result<mio::Ready>> {
+    pub fn poll_read_ready(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<mio::Ready>> {
         self.register()?;
 
         // Load cached & encoded readiness.
@@ -178,7 +184,7 @@ where
             // stream. This happens in a loop to ensure that the stream gets
             // drained.
             loop {
-                let ready = ready!(self.inner.registration.poll_read_ready(waker)?);
+                let ready = ready!(self.inner.registration.poll_read_ready(cx)?);
                 cached |= ready.as_usize();
 
                 // Update the cache store
@@ -210,14 +216,14 @@ where
     ///
     /// The `mask` argument specifies the readiness bits to clear. This may not
     /// include `writable` or `hup`.
-    pub fn clear_read_ready(&self, waker: &Waker) -> io::Result<()> {
+    pub fn clear_read_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
         self.inner
             .read_readiness
             .fetch_and(!mio::Ready::readable().as_usize(), Relaxed);
 
-        if self.poll_read_ready(waker)?.is_ready() {
+        if self.poll_read_ready(cx)?.is_ready() {
             // Notify the current task
-            waker.wake();
+            cx.waker().wake_by_ref();
         }
 
         Ok(())
@@ -242,7 +248,7 @@ where
     ///
     /// * `ready` contains bits besides `writable` and `hup`.
     /// * called from outside of a task context.
-    pub fn poll_write_ready(&self, waker: &Waker) -> Poll<Result<mio::Ready, io::Error>> {
+    pub fn poll_write_ready(&self, cx: &mut Context<'_>) -> Poll<Result<mio::Ready, io::Error>> {
         self.register()?;
 
         // Load cached & encoded readiness.
@@ -257,7 +263,7 @@ where
             // stream. This happens in a loop to ensure that the stream gets
             // drained.
             loop {
-                let ready = ready!(self.inner.registration.poll_write_ready(waker)?);
+                let ready = ready!(self.inner.registration.poll_write_ready(cx)?);
                 cached |= ready.as_usize();
 
                 // Update the cache store
@@ -293,14 +299,14 @@ where
     /// # Panics
     ///
     /// This function will panic if called from outside of a task context.
-    pub fn clear_write_ready(&self, waker: &Waker) -> io::Result<()> {
+    pub fn clear_write_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
         self.inner
             .write_readiness
             .fetch_and(!mio::Ready::writable().as_usize(), Relaxed);
 
-        if self.poll_write_ready(waker)?.is_ready() {
+        if self.poll_write_ready(cx)?.is_ready() {
             // Notify the current task
-            waker.wake();
+            cx.waker().wake_by_ref();
         }
 
         Ok(())
@@ -321,13 +327,17 @@ impl<E> AsyncRead for PollEvented<E>
 where
     E: Evented + Read,
 {
-    fn poll_read(&mut self, waker: &Waker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
-        ready!(self.poll_read_ready(waker)?);
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        ready!(Pin::new(&mut *self).poll_read_ready(cx)?);
 
-        let r = self.get_mut().read(buf);
+        let r = PollEvented::get_mut(&mut *self).read(buf);
 
         if is_wouldblock(&r) {
-            self.clear_read_ready(waker)?;
+            self.clear_read_ready(cx)?;
             Poll::Pending
         } else {
             Poll::Ready(r)
@@ -339,90 +349,37 @@ impl<E> AsyncWrite for PollEvented<E>
 where
     E: Evented + Write,
 {
-    fn poll_write(&mut self, waker: &Waker, buf: &[u8]) -> Poll<io::Result<usize>> {
-        ready!(self.poll_write_ready(waker)?);
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        ready!(self.poll_write_ready(cx)?);
 
-        let r = self.get_mut().write(buf);
+        let r = PollEvented::get_mut(&mut *self).write(buf);
 
         if is_wouldblock(&r) {
-            self.clear_write_ready(waker)?;
+            self.clear_write_ready(cx)?;
             Poll::Pending
         } else {
             Poll::Ready(r)
         }
     }
 
-    fn poll_flush(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
-        ready!(self.poll_write_ready(waker)?);
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        ready!(self.poll_write_ready(cx)?);
 
-        let r = self.get_mut().flush();
+        let r = PollEvented::get_mut(&mut *self).flush();
 
         if is_wouldblock(&r) {
-            self.clear_write_ready(waker)?;
+            self.clear_write_ready(cx)?;
             Poll::Pending
         } else {
             Poll::Ready(r)
         }
     }
 
-    fn poll_close(&mut self, _: &Waker) -> Poll<io::Result<()>> {
-        Poll::Ready(Ok(()))
-    }
-}
-
-// ===== &'a AsyncRead / &'a AsyncWrite impls =====
-
-impl<'a, E> AsyncRead for &'a PollEvented<E>
-where
-    E: Evented,
-    &'a E: Read,
-{
-    fn poll_read(&mut self, waker: &Waker, buf: &mut [u8]) -> Poll<io::Result<usize>> {
-        ready!(self.poll_read_ready(waker)?);
-
-        let r = self.get_ref().read(buf);
-
-        if is_wouldblock(&r) {
-            self.clear_read_ready(waker)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(r)
-        }
-    }
-}
-
-impl<'a, E> AsyncWrite for &'a PollEvented<E>
-where
-    E: Evented,
-    &'a E: Write,
-{
-    fn poll_write(&mut self, waker: &Waker, buf: &[u8]) -> Poll<io::Result<usize>> {
-        ready!(self.poll_write_ready(waker)?);
-
-        let r = self.get_ref().write(buf);
-
-        if is_wouldblock(&r) {
-            self.clear_write_ready(waker)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(r)
-        }
-    }
-
-    fn poll_flush(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
-        ready!(self.poll_write_ready(waker)?);
-
-        let r = self.get_ref().flush();
-
-        if is_wouldblock(&r) {
-            self.clear_write_ready(waker)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(r)
-        }
-    }
-
-    fn poll_close(&mut self, _: &Waker) -> Poll<io::Result<()>> {
+    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         Poll::Ready(Ok(()))
     }
 }
