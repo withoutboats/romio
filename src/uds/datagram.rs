@@ -211,7 +211,7 @@ impl TakeError for UnixDatagram {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use romio::async_ready::TakeError;
+    /// use romio::raw::TakeError;
     /// use romio::uds::UnixDatagram;
     ///
     /// # fn run() -> std::io::Result<()> {

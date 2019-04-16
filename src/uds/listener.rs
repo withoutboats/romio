@@ -154,7 +154,7 @@ impl TakeError for UnixListener {
     ///
     /// ```rust,no_run
     /// use romio::uds::UnixListener;
-    /// use romio::async_ready::TakeError;
+    /// use romio::raw::TakeError;
     ///
     /// # fn main () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let listener = UnixListener::bind("/tmp/sock")?;

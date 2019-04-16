@@ -268,7 +268,7 @@ impl TakeError for UnixStream {
     /// ```rust,no_run
     /// #![feature(async_await, await_macro, futures_api)]
     /// use romio::uds::UnixStream;
-    /// use romio::async_ready::TakeError;
+    /// use romio::raw::TakeError;
     ///
     /// # async fn run() -> std::io::Result<()> {
     /// let stream = await!(UnixStream::connect("/tmp/sock"))?;
