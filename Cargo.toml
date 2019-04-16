@@ -7,7 +7,7 @@ edition = "2018"
 # - Update CHANGELOG.md.
 # - Update doc URL.
 # - Create "v0.1.x" git tag.
-version = "0.3.0-alpha.2"
+version = "0.3.0-alpha.3"
 authors = ["The Rust Networking Working Group", "Carl Lerche <me@carllerche.com>"]
 license = "MIT"
 readme = "README.md"
@@ -30,7 +30,7 @@ parking_lot = "0.7.1"
 slab = "0.4.2"
 libc = "0.2.48"
 async-datagram = "2.2.0"
-async-ready = "2.0.1"
+async-ready = "2.1.0"
 
 [dependencies.futures]
 version = "0.3.0-alpha.14"
