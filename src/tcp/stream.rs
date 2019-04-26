@@ -61,7 +61,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```no_run
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # use std::io;
     /// use romio::tcp::TcpStream;
     ///
@@ -91,7 +91,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     /// use std::net::{IpAddr, Ipv4Addr};
     ///
@@ -112,7 +112,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     /// use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
     ///
@@ -137,7 +137,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     /// use std::net::Shutdown;
     ///
@@ -161,7 +161,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
@@ -187,7 +187,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
@@ -210,7 +210,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
@@ -233,7 +233,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
@@ -256,7 +256,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
@@ -279,7 +279,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
@@ -303,7 +303,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     /// use std::time::Duration;
     ///
@@ -335,7 +335,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     /// use std::time::Duration;
     ///
@@ -359,7 +359,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
@@ -382,7 +382,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
@@ -406,7 +406,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     /// use std::time::Duration;
     ///
@@ -437,7 +437,7 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::tcp::TcpStream;
     /// use std::time::Duration;
     ///

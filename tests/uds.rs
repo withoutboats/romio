@@ -1,10 +1,10 @@
 #![cfg(any(unix, macos))]
-#![feature(async_await, await_macro, futures_api)]
+#![feature(async_await, await_macro)]
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream as StdStream;
 use std::thread;
 
-use futures::future::{self, FutureObj};
+use futures::future;
 use futures::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use futures::{executor, Poll, Stream, StreamExt};
 use log::{error, info};
@@ -88,19 +88,19 @@ fn both_sides_async_using_threadpool() -> Result<(), Error> {
 
     let mut pool = executor::ThreadPool::new().unwrap();
 
-    pool.run(FutureObj::from(Box::pin(async move {
+    pool.run(Box::pin(async move {
         let file_path = file_path.as_pathname().unwrap();
         let mut client = await!(UnixStream::connect(&file_path)).unwrap();
         await!(client.write_all(THE_WINTERS_TALE)).unwrap();
-    })));
+    }));
 
-    pool.run(FutureObj::from(Box::pin(async {
+    pool.run(Box::pin(async {
         let mut buf = vec![0; THE_WINTERS_TALE.len()];
         let mut incoming = listener.incoming();
         let mut stream = await!(incoming.next()).unwrap().unwrap();
         await!(stream.read_exact(&mut buf)).unwrap();
         assert_eq!(buf, THE_WINTERS_TALE);
-    })));
+    }));
 
     Ok(())
 }

@@ -27,7 +27,7 @@ use crate::raw::PollEvented;
 /// # Examples
 ///
 /// ```rust,no_run
-/// #![feature(async_await, await_macro, futures_api)]
+/// #![feature(async_await, await_macro)]
 /// use std::error::Error;
 ///
 /// use romio::tcp::{TcpListener, TcpStream};
@@ -125,7 +125,7 @@ impl TcpListener {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use futures::prelude::*;
     /// use romio::tcp::TcpListener;
     ///
@@ -158,7 +158,7 @@ impl TcpListener {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use futures::prelude::*;
     /// use romio::tcp::TcpListener;
     ///
@@ -181,7 +181,7 @@ impl TcpListener {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use futures::prelude::*;
     /// use romio::tcp::TcpListener;
     ///

@@ -51,7 +51,7 @@ impl UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::uds::UnixStream;
     ///
     /// # async fn run() -> std::io::Result<()> {
@@ -78,7 +78,7 @@ impl UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::uds::UnixStream;
     ///
     /// # async fn run() -> std::io::Result<()> {
@@ -103,7 +103,7 @@ impl UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::uds::UnixStream;
     ///
     /// # async fn run() -> std::io::Result<()> {
@@ -120,7 +120,7 @@ impl UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::uds::UnixStream;
     ///
     /// # async fn run() -> std::io::Result<()> {
@@ -137,7 +137,7 @@ impl UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::uds::UnixStream;
     ///
     /// # async fn run() -> std::io::Result<()> {
@@ -156,7 +156,7 @@ impl UnixStream {
     /// (see the documentation of `Shutdown`).
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::uds::UnixStream;
     /// use std::net::Shutdown;
     ///
@@ -266,7 +266,7 @@ impl TakeError for UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::uds::UnixStream;
     /// use romio::raw::TakeError;
     ///

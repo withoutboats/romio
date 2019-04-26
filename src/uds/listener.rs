@@ -19,7 +19,7 @@ use std::task::Context;
 /// # Examples
 ///
 /// ```no_run
-/// #![feature(async_await, await_macro, futures_api)]
+/// #![feature(async_await, await_macro)]
 /// use romio::uds::{UnixListener, UnixStream};
 /// use futures::prelude::*;
 ///
@@ -88,7 +88,7 @@ impl UnixListener {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// use romio::uds::UnixListener;
     /// use futures::prelude::*;
     ///

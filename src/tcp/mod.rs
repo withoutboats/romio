@@ -19,7 +19,7 @@
 //! # Example
 //!
 //! ```no_run
-//! #![feature(async_await, await_macro, futures_api)]
+//! #![feature(async_await, await_macro)]
 //! use romio::tcp::{TcpListener, TcpStream};
 //! use futures::prelude::*;
 //!

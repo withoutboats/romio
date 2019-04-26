@@ -18,7 +18,7 @@
 //! # Examples
 //! __TCP Server__
 //! ```rust
-//! #![feature(async_await, await_macro, futures_api)]
+//! #![feature(async_await, await_macro)]
 //! use romio::tcp::{TcpListener, TcpStream};
 //! use futures::prelude::*;
 //!
@@ -40,7 +40,7 @@
 //! ```
 //! __TCP Client__
 //! ```rust,no_run
-//! #![feature(async_await, await_macro, futures_api)]
+//! #![feature(async_await, await_macro)]
 //! use std::error::Error;
 //! use futures::prelude::*;
 //! use romio::tcp::{TcpListener, TcpStream};
@@ -56,7 +56,6 @@
 //! }
 //! ```
 
-#![feature(futures_api)]
 #![deny(missing_docs, missing_debug_implementations)]
 #![cfg_attr(test, deny(warnings))]
 

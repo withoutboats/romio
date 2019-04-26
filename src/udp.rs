@@ -86,7 +86,7 @@ impl UdpSocket {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # use std::error::Error;
     /// use romio::udp::UdpSocket;
     ///
@@ -120,7 +120,7 @@ impl UdpSocket {
     /// # Exampes
     ///
     /// ```rust,no_run
-    /// #![feature(futures_api, async_await, await_macro)]
+    /// #![feature(async_await, await_macro)]
     /// # use std::error::Error;
     /// use romio::udp::UdpSocket;
     ///
