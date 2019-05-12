@@ -8,8 +8,7 @@ use std::time::Duration;
 
 use async_ready::{AsyncReadReady, AsyncWriteReady};
 use futures::io::{AsyncRead, AsyncWrite};
-use futures::{ready, Future};
-use iovec::IoVec;
+use futures::{Future};
 use mio;
 
 use crate::raw::PollEvented;
@@ -461,23 +460,6 @@ impl AsyncRead for TcpStream {
     ) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.io).poll_read(cx, buf)
     }
-
-    fn poll_vectored_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        bufs: &mut [&mut IoVec],
-    ) -> Poll<io::Result<usize>> {
-        ready!(Pin::new(&mut *self).poll_read_ready(cx)?);
-
-        let r = self.io.get_ref().read_bufs(bufs);
-
-        if is_wouldblock(&r) {
-            Pin::new(&mut self.io).clear_read_ready(cx)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(r)
-        }
-    }
 }
 
 impl AsyncWrite for TcpStream {
@@ -487,22 +469,6 @@ impl AsyncWrite for TcpStream {
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.io).poll_write(cx, buf)
-    }
-
-    fn poll_vectored_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        bufs: &[&IoVec],
-    ) -> Poll<io::Result<usize>> {
-        ready!(Pin::new(&mut *self).poll_write_ready(cx)?);
-
-        let r = self.io.get_ref().write_bufs(bufs);
-
-        if is_wouldblock(&r) {
-            Pin::new(&mut self.io).clear_write_ready(cx)?;
-        }
-
-        return Poll::Ready(r);
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
@@ -621,12 +587,5 @@ mod sys {
         fn as_raw_fd(&self) -> RawFd {
             self.io.get_ref().as_raw_fd()
         }
-    }
-}
-
-fn is_wouldblock<T>(r: &io::Result<T>) -> bool {
-    match *r {
-        Ok(_) => false,
-        Err(ref e) => e.kind() == io::ErrorKind::WouldBlock,
     }
 }

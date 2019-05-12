@@ -5,7 +5,6 @@ use crate::raw::PollEvented;
 use async_ready::{AsyncReadReady, AsyncWriteReady, TakeError};
 use futures::io::{AsyncRead, AsyncWrite};
 use futures::{ready, Future, Poll};
-use iovec::IoVec;
 
 use std::fmt;
 use std::io;
@@ -178,23 +177,6 @@ impl AsyncRead for UnixStream {
     ) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.io).poll_read(cx, buf)
     }
-
-    fn poll_vectored_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        bufs: &mut [&mut IoVec],
-    ) -> Poll<io::Result<usize>> {
-        ready!(Pin::new(&mut *self).poll_read_ready(cx)?);
-
-        let r = self.io.get_ref().read_bufs(bufs);
-
-        if is_wouldblock(&r) {
-            Pin::new(&mut self.io).clear_read_ready(cx)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(r)
-        }
-    }
 }
 
 impl AsyncWrite for UnixStream {
@@ -204,22 +186,6 @@ impl AsyncWrite for UnixStream {
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.io).poll_write(cx, buf)
-    }
-
-    fn poll_vectored_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        bufs: &[&IoVec],
-    ) -> Poll<io::Result<usize>> {
-        ready!(Pin::new(&mut *self).poll_write_ready(cx)?);
-
-        let r = self.io.get_ref().write_bufs(bufs);
-
-        if is_wouldblock(&r) {
-            Pin::new(&mut self.io).clear_write_ready(cx)?;
-        }
-
-        return Poll::Ready(r);
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
@@ -323,12 +289,5 @@ impl Future for ConnectFuture {
             State::Waiting(stream) => Poll::Ready(Ok(stream)),
             _ => unreachable!(),
         }
-    }
-}
-
-fn is_wouldblock<T>(r: &io::Result<T>) -> bool {
-    match *r {
-        Ok(_) => false,
-        Err(ref e) => e.kind() == io::ErrorKind::WouldBlock,
     }
 }
