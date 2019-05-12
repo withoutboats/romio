@@ -1,5 +1,5 @@
 #![cfg(any(unix, macos))]
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream as StdStream;
 use std::thread;
@@ -42,8 +42,8 @@ fn listener_reads() -> Result<(), Error> {
     executor::block_on(async {
         let mut buf = vec![0; THE_WINTERS_TALE.len()];
         let mut incoming = listener.incoming();
-        let mut stream = await!(incoming.next()).unwrap().unwrap();
-        await!(stream.read_exact(&mut buf)).unwrap();
+        let mut stream = incoming.next().await.unwrap().unwrap();
+        stream.read_exact(&mut buf).await.unwrap();
         assert_eq!(buf, THE_WINTERS_TALE);
     });
 
@@ -70,8 +70,8 @@ fn listener_writes() -> Result<(), Error> {
 
     executor::block_on(async {
         let mut incoming = listener.incoming();
-        let mut stream = await!(incoming.next()).unwrap().unwrap();
-        await!(stream.write_all(THE_WINTERS_TALE)).unwrap();
+        let mut stream = incoming.next().await.unwrap().unwrap();
+        stream.write_all(THE_WINTERS_TALE).await.unwrap();
     });
 
     Ok(())
@@ -90,15 +90,15 @@ fn both_sides_async_using_threadpool() -> Result<(), Error> {
 
     pool.run(Box::pin(async move {
         let file_path = file_path.as_pathname().unwrap();
-        let mut client = await!(UnixStream::connect(&file_path)).unwrap();
-        await!(client.write_all(THE_WINTERS_TALE)).unwrap();
+        let mut client = UnixStream::connect(&file_path).await.unwrap();
+        client.write_all(THE_WINTERS_TALE).await.unwrap();
     }));
 
     pool.run(Box::pin(async {
         let mut buf = vec![0; THE_WINTERS_TALE.len()];
         let mut incoming = listener.incoming();
-        let mut stream = await!(incoming.next()).unwrap().unwrap();
-        await!(stream.read_exact(&mut buf)).unwrap();
+        let mut stream = incoming.next().await.unwrap().unwrap();
+        stream.read_exact(&mut buf).await.unwrap();
         assert_eq!(buf, THE_WINTERS_TALE);
     }));
 
@@ -114,12 +114,12 @@ fn pair() -> Result<(), Error> {
     // client thread
     let fut_bytes_test = async {
         let mut buf = vec![0; THE_WINTERS_TALE.len()];
-        await!(client.read_exact(&mut buf)).unwrap();
+        client.read_exact(&mut buf).await.unwrap();
         assert_eq!(buf, THE_WINTERS_TALE);
     };
 
     executor::block_on(async {
-        await!(server.write_all(THE_WINTERS_TALE)).unwrap();
+        server.write_all(THE_WINTERS_TALE).await.unwrap();
     });
 
     executor::block_on(fut_bytes_test);
@@ -190,10 +190,10 @@ fn reads_bytes() {
 
     let buf: Vec<u8> = executor::block_on(async {
         let reader: RomioReader = client.into();
-        await!(reader.fold(vec![], |mut agg, b| {
+        reader.fold(vec![], |mut agg, b| {
             agg.extend(b);
             future::ready(agg)
-        }))
+        }).await
     });
 
     let expected = "The thrust of a sword will end this surrender";

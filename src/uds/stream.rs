@@ -50,11 +50,11 @@ impl UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::uds::UnixStream;
     ///
     /// # async fn run() -> std::io::Result<()> {
-    /// let stream = await!(UnixStream::connect("/tmp/sock"));
+    /// let stream = UnixStream::connect("/tmp/sock").await;
     /// # Ok(()) }
     /// ```
     pub fn connect(path: impl AsRef<Path>) -> ConnectFuture {
@@ -77,7 +77,7 @@ impl UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::uds::UnixStream;
     ///
     /// # async fn run() -> std::io::Result<()> {
@@ -102,11 +102,11 @@ impl UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::uds::UnixStream;
     ///
     /// # async fn run() -> std::io::Result<()> {
-    /// let stream = await!(UnixStream::connect("/tmp/sock"))?;
+    /// let stream = UnixStream::connect("/tmp/sock").await?;
     /// let addr = stream.local_addr()?;
     /// # Ok(()) }
     /// ```
@@ -119,11 +119,11 @@ impl UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::uds::UnixStream;
     ///
     /// # async fn run() -> std::io::Result<()> {
-    /// let stream = await!(UnixStream::connect("/tmp/sock"))?;
+    /// let stream = UnixStream::connect("/tmp/sock").await?;
     /// let addr = stream.peer_addr()?;
     /// # Ok(()) }
     /// ```
@@ -136,11 +136,11 @@ impl UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::uds::UnixStream;
     ///
     /// # async fn run() -> std::io::Result<()> {
-    /// let stream = await!(UnixStream::connect("/tmp/sock"))?;
+    /// let stream = UnixStream::connect("/tmp/sock").await?;
     /// let cred = stream.peer_cred()?;
     /// # Ok(()) }
     /// ```
@@ -155,12 +155,12 @@ impl UnixStream {
     /// (see the documentation of `Shutdown`).
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::uds::UnixStream;
     /// use std::net::Shutdown;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
-    /// let stream = await!(UnixStream::connect("/tmp/sock"))?;
+    /// let stream = UnixStream::connect("/tmp/sock").await?;
     /// stream.shutdown(Shutdown::Both)?;
     /// # Ok(())}
     /// ```
@@ -232,12 +232,12 @@ impl TakeError for UnixStream {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::uds::UnixStream;
     /// use romio::raw::TakeError;
     ///
     /// # async fn run() -> std::io::Result<()> {
-    /// let stream = await!(UnixStream::connect("/tmp/sock"))?;
+    /// let stream = UnixStream::connect("/tmp/sock").await?;
     /// if let Ok(Some(err)) = stream.take_error() {
     ///     println!("Got error: {:?}", err);
     /// }

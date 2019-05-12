@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::thread;
@@ -31,8 +31,8 @@ fn listener_reads() {
     executor::block_on(async {
         let mut buf = vec![0; THE_WINTERS_TALE.len()];
         let mut incoming = server.incoming();
-        let mut stream = await!(incoming.next()).unwrap().unwrap();
-        await!(stream.read_exact(&mut buf)).unwrap();
+        let mut stream = incoming.next().await.unwrap().unwrap();
+        stream.read_exact(&mut buf).await.unwrap();
         assert_eq!(buf, THE_WINTERS_TALE);
     });
 }
@@ -53,8 +53,8 @@ fn listener_writes() {
 
     executor::block_on(async {
         let mut incoming = server.incoming();
-        let mut stream = await!(incoming.next()).unwrap().unwrap();
-        await!(stream.write_all(THE_WINTERS_TALE)).unwrap();
+        let mut stream = incoming.next().await.unwrap().unwrap();
+        stream.write_all(THE_WINTERS_TALE).await.unwrap();
     });
 }
 
@@ -67,15 +67,15 @@ fn both_sides_async_using_threadpool() {
     let mut pool = executor::ThreadPool::new().unwrap();
 
     pool.run(Box::pin(async move {
-        let mut client = await!(romio::TcpStream::connect(&addr)).unwrap();
-        await!(client.write_all(THE_WINTERS_TALE)).unwrap();
+        let mut client = romio::TcpStream::connect(&addr).await.unwrap();
+        client.write_all(THE_WINTERS_TALE).await.unwrap();
     }));
 
     pool.run(Box::pin(async {
         let mut buf = vec![0; THE_WINTERS_TALE.len()];
         let mut incoming = server.incoming();
-        let mut stream = await!(incoming.next()).unwrap().unwrap();
-        await!(stream.read_exact(&mut buf)).unwrap();
+        let mut stream = incoming.next().await.unwrap().unwrap();
+        stream.read_exact(&mut buf).await.unwrap();
         assert_eq!(buf, THE_WINTERS_TALE);
     }));
 }

@@ -19,12 +19,12 @@ use std::task::Context;
 /// # Examples
 ///
 /// ```no_run
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// use romio::uds::{UnixListener, UnixStream};
 /// use futures::prelude::*;
 ///
 /// async fn say_hello(mut stream: UnixStream) {
-///     await!(stream.write_all(b"Shall I hear more, or shall I speak at this?!"));
+///     stream.write_all(b"Shall I hear more, or shall I speak at this?!").await;
 /// }
 ///
 /// async fn listen() -> Result<(), Box<dyn std::error::Error + 'static>> {
@@ -32,8 +32,8 @@ use std::task::Context;
 ///     let mut incoming = listener.incoming();
 ///
 ///     // accept connections and process them serially
-///     while let Some(stream) = await!(incoming.next()) {
-///         await!(say_hello(stream?));
+///     while let Some(stream) = incoming.next().await {
+///         say_hello(stream?).await;
 ///     }
 ///     Ok(())
 /// }
@@ -88,7 +88,7 @@ impl UnixListener {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::uds::UnixListener;
     /// use futures::prelude::*;
     ///
@@ -97,7 +97,7 @@ impl UnixListener {
     /// let mut incoming = listener.incoming();
     ///
     /// // accept connections and process them serially
-    /// while let Some(stream) = await!(incoming.next()) {
+    /// while let Some(stream) = incoming.next().await {
     ///     match stream {
     ///         Ok(stream) => {
     ///             println!("new client!");

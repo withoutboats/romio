@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 
 use std::io;
 
@@ -9,9 +9,9 @@ use romio::TcpStream;
 
 fn main() -> io::Result<()> {
     executor::block_on(async {
-        let mut stream = await!(TcpStream::connect(&"127.0.0.1:7878".parse().unwrap()))?;
+        let mut stream = TcpStream::connect(&"127.0.0.1:7878".parse().unwrap()).await?;
         let mut stdout = AllowStdIo::new(io::stdout());
-        await!(stream.copy_into(&mut stdout))?;
+        stream.copy_into(&mut stdout).await?;
         Ok(())
     })
 }

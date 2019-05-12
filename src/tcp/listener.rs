@@ -27,14 +27,14 @@ use crate::raw::PollEvented;
 /// # Examples
 ///
 /// ```rust,no_run
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// use std::error::Error;
 ///
 /// use romio::tcp::{TcpListener, TcpStream};
 /// use futures::prelude::*;
 ///
 /// async fn recite_shakespeare(mut stream: TcpStream) {
-///     await!(stream.write_all(b"Shall I hear more, or shall I speak at this?"));
+///     stream.write_all(b"Shall I hear more, or shall I speak at this?").await;
 /// }
 ///
 /// async fn listen() -> Result<(), Box<dyn Error + 'static>> {
@@ -43,8 +43,8 @@ use crate::raw::PollEvented;
 ///     let mut incoming = listener.incoming();
 ///
 ///     // accept connections and process them serially
-///     while let Some(stream) = await!(incoming.next()) {
-///         await!(recite_shakespeare(stream?));
+///     while let Some(stream) = incoming.next().await {
+///         recite_shakespeare(stream?).await;
 ///     }
 ///     Ok(())
 /// }
@@ -125,7 +125,7 @@ impl TcpListener {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::prelude::*;
     /// use romio::tcp::TcpListener;
     ///
@@ -135,7 +135,7 @@ impl TcpListener {
     /// let mut incoming = listener.incoming();
     ///
     /// // accept connections and process them serially
-    /// while let Some(stream) = await!(incoming.next()) {
+    /// while let Some(stream) = incoming.next().await {
     ///     match stream {
     ///         Ok(stream) => {
     ///             println!("new client!");
@@ -158,7 +158,7 @@ impl TcpListener {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::prelude::*;
     /// use romio::tcp::TcpListener;
     ///
@@ -181,7 +181,7 @@ impl TcpListener {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::prelude::*;
     /// use romio::tcp::TcpListener;
     ///

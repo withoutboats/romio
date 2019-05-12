@@ -86,7 +86,7 @@ impl UdpSocket {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # use std::error::Error;
     /// use romio::udp::UdpSocket;
     ///
@@ -102,7 +102,7 @@ impl UdpSocket {
     /// let target = "127.0.0.1:7878".parse()?;
     /// let mut socket = UdpSocket::bind(&addr)?;
     ///
-    /// await!(socket.send_to(THE_MERCHANT_OF_VENICE, &target))?;
+    /// socket.send_to(THE_MERCHANT_OF_VENICE, &target).await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -120,7 +120,7 @@ impl UdpSocket {
     /// # Exampes
     ///
     /// ```rust,no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # use std::error::Error;
     /// use romio::udp::UdpSocket;
     ///
@@ -129,7 +129,7 @@ impl UdpSocket {
     /// let mut socket = UdpSocket::bind(&addr)?;
     /// let mut buf = vec![0; 1024];
     ///
-    /// await!(socket.recv_from(&mut buf))?;
+    /// socket.recv_from(&mut buf).await?;
     /// # Ok(buf)
     /// # }
     /// ```

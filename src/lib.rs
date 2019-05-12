@@ -18,12 +18,12 @@
 //! # Examples
 //! __TCP Server__
 //! ```rust
-//! #![feature(async_await, await_macro)]
+//! #![feature(async_await)]
 //! use romio::tcp::{TcpListener, TcpStream};
 //! use futures::prelude::*;
 //!
 //! async fn say_hello(mut stream: TcpStream) {
-//!     await!(stream.write_all(b"Shall I hear more, or shall I speak at this?"));
+//!     stream.write_all(b"Shall I hear more, or shall I speak at this?").await;
 //! }
 //!
 //! async fn listen() -> Result<(), Box<dyn std::error::Error + 'static>> {
@@ -32,15 +32,15 @@
 //!     let mut incoming = listener.incoming();
 //!
 //!     // accept connections and process them serially
-//!     while let Some(stream) = await!(incoming.next()) {
-//!         await!(say_hello(stream?));
+//!     while let Some(stream) = incoming.next().await {
+//!         say_hello(stream?).await;
 //!     }
 //!     Ok(())
 //! }
 //! ```
 //! __TCP Client__
 //! ```rust,no_run
-//! #![feature(async_await, await_macro)]
+//! #![feature(async_await)]
 //! use std::error::Error;
 //! use futures::prelude::*;
 //! use romio::tcp::{TcpListener, TcpStream};
@@ -48,9 +48,9 @@
 //! async fn receive_sonnet() -> Result<(), Box<dyn Error + 'static>> {
 //!     let socket_addr = "127.0.0.1:8080".parse()?;
 //!     let mut buffer = vec![];
-//!     let mut stream = await!(TcpStream::connect(&socket_addr))?;
+//!     let mut stream = TcpStream::connect(&socket_addr).await?;
 //!
-//!     await!(stream.read(&mut buffer))?;
+//!     stream.read(&mut buffer).await?;
 //!     println!("{:?}", buffer);
 //!     Ok(())
 //! }

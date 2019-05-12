@@ -60,13 +60,13 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```no_run
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # use std::io;
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn connect_localhost() -> io::Result<TcpStream> {
     /// let addr = "127.0.0.1".parse().unwrap();
-    /// await!(TcpStream::connect(&addr))
+    /// TcpStream::connect(&addr).await
     /// # }
     /// ```
     pub fn connect(addr: &SocketAddr) -> ConnectFuture {
@@ -90,13 +90,13 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     /// use std::net::{IpAddr, Ipv4Addr};
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// let expected = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
     /// assert_eq!(stream.local_addr()?.ip(), expected);
@@ -111,13 +111,13 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     /// use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// let expected = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080);
     /// assert_eq!(stream.peer_addr()?, SocketAddr::V4(expected));
@@ -136,13 +136,13 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     /// use std::net::Shutdown;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.shutdown(Shutdown::Both)?;
     /// # Ok(())}
@@ -160,12 +160,12 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_nodelay(true)?;
     /// assert_eq!(stream.nodelay()?, true);
@@ -186,12 +186,12 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_nodelay(true)?;
     /// # Ok(())}
@@ -209,12 +209,12 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_recv_buffer_size(100);
     /// assert_eq!(stream.recv_buffer_size()?, 100);
@@ -232,12 +232,12 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_recv_buffer_size(100);
     /// # Ok(())}
@@ -255,12 +255,12 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_send_buffer_size(100);
     /// assert_eq!(stream.send_buffer_size()?, 100);
@@ -278,12 +278,12 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_send_buffer_size(100);
     /// # Ok(())}
@@ -302,13 +302,13 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     /// use std::time::Duration;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_keepalive(Some(Duration::from_secs(60)))?;
     /// assert_eq!(stream.keepalive()?, Some(Duration::from_secs(60)));
@@ -334,13 +334,13 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     /// use std::time::Duration;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_keepalive(Some(Duration::from_secs(60)))?;
     /// # Ok(())}
@@ -358,12 +358,12 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_ttl(100)?;
     /// assert_eq!(stream.ttl()?, 100);
@@ -381,12 +381,12 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_ttl(100)?;
     /// # Ok(())}
@@ -405,13 +405,13 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     /// use std::time::Duration;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_linger(Some(Duration::from_millis(100)))?;
     /// assert_eq!(stream.linger()?, Some(Duration::from_millis(100)));
@@ -436,13 +436,13 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```rust
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use romio::tcp::TcpStream;
     /// use std::time::Duration;
     ///
     /// # async fn run () -> Result<(), Box<dyn std::error::Error + 'static>> {
     /// let addr = "127.0.0.1:8080".parse()?;
-    /// let stream = await!(TcpStream::connect(&addr))?;
+    /// let stream = TcpStream::connect(&addr).await?;
     ///
     /// stream.set_linger(Some(Duration::from_millis(100)))?;
     /// # Ok(())}

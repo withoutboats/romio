@@ -40,7 +40,7 @@ the quote it received to standard out.
 ### Shakespeare Server
 
 ```rust
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 
 use std::io;
 
@@ -73,14 +73,14 @@ fn main() -> io::Result<()> {
 
         println!("Listening on 127.0.0.1:7878");
 
-        while let Some(stream) = await!(incoming.next()) {
+        while let Some(stream) = incoming.next().await {
             let stream = stream?;
             let addr = stream.peer_addr()?;
 
             threadpool.spawn(async move {
                 println!("Accepting stream from: {}", addr);
 
-                await!(recite_shakespeare(stream)).unwrap();
+                recite_shakespeare(stream).await.unwrap();
 
                 println!("Closing stream from: {}", addr);
             }).unwrap();
@@ -93,7 +93,7 @@ fn main() -> io::Result<()> {
 async fn recite_shakespeare(mut stream: TcpStream) -> io::Result<()> {
     //stream.set_keepalive(None);
     let &quote = SHAKESPEARE.choose(&mut rand::thread_rng()).unwrap();
-    await!(stream.write_all(quote))?;
+    stream.write_all(quote).await?;
     Ok(())
 }
 ```
@@ -101,7 +101,7 @@ async fn recite_shakespeare(mut stream: TcpStream) -> io::Result<()> {
 ### Shakespeare Client
 
 ```rust
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 
 use std::io;
 
@@ -112,9 +112,9 @@ use romio::TcpStream;
 
 fn main() -> io::Result<()> {
     executor::block_on(async {
-        let mut stream = await!(TcpStream::connect(&"127.0.0.1:7878".parse().unwrap()))?;
+        let mut stream = TcpStream::connect(&"127.0.0.1:7878".parse().unwrap()).await?;
         let mut stdout = AllowStdIo::new(io::stdout());
-        await!(stream.copy_into(&mut stdout))?;
+        stream.copy_into(&mut stdout).await?;
         Ok(())
     })
 }
