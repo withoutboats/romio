@@ -13,10 +13,48 @@ use std::os::unix::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::task::Context;
+use std::future::Future;
 
 /// An I/O object representing a Unix datagram socket.
 pub struct UnixDatagram {
     io: PollEvented<mio_uds::UnixDatagram>,
+}
+
+/// The future returned by `UnixDatagram::send_to`.
+#[derive(Debug)]
+pub struct SendTo<'a, 'b> {
+    socket: &'a mut UnixDatagram,
+    buf: &'b [u8],
+    target: &'b PathBuf,
+}
+
+impl<'a, 'b> Future for SendTo<'a, 'b> {
+    type Output = io::Result<usize>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let SendTo {
+            socket,
+            buf,
+            target,
+        } = &mut *self;
+        Pin::new(&mut **socket).poll_send_to(cx, buf, target)
+    }
+}
+
+/// The future returned by `UnixDatagram::recv_from`.
+#[derive(Debug)]
+pub struct RecvFrom<'a, 'b> {
+    socket: &'a mut UnixDatagram,
+    buf: &'b mut [u8],
+}
+
+impl<'a, 'b> Future for RecvFrom<'a, 'b> {
+    type Output = io::Result<(usize, SocketAddr)>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let RecvFrom { socket, buf } = &mut *self;
+        Pin::new(&mut **socket).poll_recv_from(cx, buf)
+    }
 }
 
 impl UnixDatagram {
@@ -132,6 +170,63 @@ impl UnixDatagram {
     /// ```
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         self.io.get_ref().shutdown(how)
+    }
+
+    /// Sends data on the socket to the given address. On success, returns the
+    /// number of bytes written.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// #![feature(async_await)]
+    /// # use std::error::Error;
+    /// use romio::udp::UdpSocket;
+    ///
+    /// const THE_MERCHANT_OF_VENICE: &[u8] = b"
+    ///     If you prick us, do we not bleed?
+    ///     If you tickle us, do we not laugh?
+    ///     If you poison us, do we not die?
+    ///     And if you wrong us, shall we not revenge?
+    /// ";
+    ///
+    /// # async fn send_data() -> Result<(), Box<dyn Error + 'static>> {
+    /// let addr = "/tmp/out.socket".parse()?;
+    /// let target = "/tmp/in.socket".parse()?;
+    /// let mut socket = UdpSocket::bind(&addr)?;
+    ///
+    /// socket.send_to(THE_MERCHANT_OF_VENICE, &target).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn send_to<'a, 'b>(&'a mut self, buf: &'b [u8], target: &'b PathBuf) -> SendTo<'a, 'b> {
+        SendTo {
+            buf,
+            target,
+            socket: self,
+        }
+    }
+
+    /// Receives data from the socket. On success, returns the number of bytes
+    /// read and the address from whence the data came.
+    ///
+    /// # Exampes
+    ///
+    /// ```no_run
+    /// #![feature(async_await)]
+    /// # use std::error::Error;
+    /// use romio::udp::UdpSocket;
+    ///
+    /// # async fn recv_data() -> Result<Vec<u8>, Box<dyn Error + 'static>> {
+    /// let addr = "/tmp/in.socket".parse()?;
+    /// let mut socket = UdpSocket::bind(&addr)?;
+    /// let mut buf = vec![0; 1024];
+    ///
+    /// socket.recv_from(&mut buf).await?;
+    /// # Ok(buf)
+    /// # }
+    /// ```
+    pub fn recv_from<'a, 'b>(&'a mut self, buf: &'b mut [u8]) -> RecvFrom<'a, 'b> {
+        RecvFrom { buf, socket: self }
     }
 }
 

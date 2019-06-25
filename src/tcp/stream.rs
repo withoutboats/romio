@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use async_ready::{AsyncReadReady, AsyncWriteReady};
 use futures::io::{AsyncRead, AsyncWrite};
-use futures::{Future};
+use futures::Future;
 use mio;
 
 use crate::raw::PollEvented;
