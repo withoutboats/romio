@@ -28,8 +28,8 @@ num_cpus = "1.10.0"
 parking_lot = "0.7.1"
 slab = "0.4.2"
 libc = "0.2.48"
-async-datagram = "2.2.0"
-async-ready = "2.1.0"
+async-datagram = "3.0.0"
+async-ready = "3.0.0"
 futures-preview = "0.3.0-alpha.16"
 
 [dev-dependencies]
