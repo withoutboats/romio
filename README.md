@@ -44,10 +44,10 @@ the quote it received to standard out.
 
 use std::io;
 
-use futures::StreamExt;
 use futures::executor::{self, ThreadPool};
 use futures::io::AsyncWriteExt;
-use futures::task::{SpawnExt};
+use futures::task::SpawnExt;
+use futures::StreamExt;
 
 use rand::seq::SliceRandom;
 
@@ -68,7 +68,7 @@ fn main() -> io::Result<()> {
     executor::block_on(async {
         let mut threadpool = ThreadPool::new()?;
 
-        let listener = TcpListener::bind(&"127.0.0.1:7878".parse().unwrap())?;
+        let mut listener = TcpListener::bind(&"127.0.0.1:7878".parse().unwrap())?;
         let mut incoming = listener.incoming();
 
         println!("Listening on 127.0.0.1:7878");
@@ -77,13 +77,15 @@ fn main() -> io::Result<()> {
             let stream = stream?;
             let addr = stream.peer_addr()?;
 
-            threadpool.spawn(async move {
-                println!("Accepting stream from: {}", addr);
+            threadpool
+                .spawn(async move {
+                    println!("Accepting stream from: {}", addr);
 
-                recite_shakespeare(stream).await.unwrap();
+                    recite_shakespeare(stream).await.unwrap();
 
-                println!("Closing stream from: {}", addr);
-            }).unwrap();
+                    println!("Closing stream from: {}", addr);
+                })
+                .unwrap();
         }
 
         Ok(())
@@ -106,7 +108,7 @@ async fn recite_shakespeare(mut stream: TcpStream) -> io::Result<()> {
 use std::io;
 
 use futures::executor;
-use futures::io::{AsyncReadExt, AllowStdIo};
+use futures::io::{AllowStdIo, AsyncReadExt};
 
 use romio::TcpStream;
 
