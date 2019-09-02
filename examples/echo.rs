@@ -38,7 +38,7 @@ fn main() -> io::Result<()> {
 }
 
 async fn echo_on(stream: TcpStream) -> io::Result<()> {
-    let (mut reader, mut writer) = stream.split();
+    let (reader, mut writer) = stream.split();
     reader.copy_into(&mut writer).await?;
     Ok(())
 }
