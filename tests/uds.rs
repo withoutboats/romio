@@ -1,5 +1,4 @@
 #![cfg(any(unix, macos))]
-#![feature(async_await)]
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream as StdStream;
 use std::thread;

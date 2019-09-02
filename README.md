@@ -40,8 +40,6 @@ the quote it received to standard out.
 ### Shakespeare Server
 
 ```rust
-#![feature(async_await)]
-
 use std::io;
 
 use futures::executor::{self, ThreadPool};
@@ -103,8 +101,6 @@ async fn recite_shakespeare(mut stream: TcpStream) -> io::Result<()> {
 ### Shakespeare Client
 
 ```rust
-#![feature(async_await)]
-
 use std::io;
 
 use futures::executor;

@@ -1,4 +1,3 @@
-#![feature(async_await)]
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::thread;

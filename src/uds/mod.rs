@@ -3,7 +3,6 @@
 //! # Example
 //!
 //! ```no_run
-//! #![feature(async_await)]
 //! use romio::uds::{UnixListener, UnixStream};
 //! use futures::prelude::*;
 //!

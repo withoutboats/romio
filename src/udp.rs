@@ -86,7 +86,6 @@ impl UdpSocket {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// #![feature(async_await)]
     /// # use std::error::Error;
     /// use romio::udp::UdpSocket;
     ///
@@ -120,7 +119,6 @@ impl UdpSocket {
     /// # Exampes
     ///
     /// ```rust,no_run
-    /// #![feature(async_await)]
     /// # use std::error::Error;
     /// use romio::udp::UdpSocket;
     ///

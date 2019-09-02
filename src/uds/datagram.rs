@@ -178,7 +178,6 @@ impl UnixDatagram {
     /// # Examples
     ///
     /// ```no_run
-    /// #![feature(async_await)]
     /// # use std::error::Error;
     /// use romio::udp::UdpSocket;
     ///
@@ -212,7 +211,6 @@ impl UnixDatagram {
     /// # Exampes
     ///
     /// ```no_run
-    /// #![feature(async_await)]
     /// # use std::error::Error;
     /// use romio::udp::UdpSocket;
     ///
