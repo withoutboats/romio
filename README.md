@@ -7,6 +7,10 @@
 
 Asynchronous network primitives in Rust.
 
+__Note: This library is not actively being developed. If you're looking for an
+`async/await` compatible runtime consider using
+[`async-std`](https://github.com/async-rs/async-std).__
+
 Romio combines the powerful [`futures`][futures] abstractions with the
 nonblocking IO primitives of [`mio`][mio] to provide efficient and ergonomic
 asynchronous IO primitives for the Rust asynchronous networking ecosystem.
