@@ -8,7 +8,7 @@
 Asynchronous network primitives in Rust.
 
 __Note: This library is not actively being developed. If you're looking for an
-`async/await` compatible runtime consider using
+`async/await` compatible runtime consider using [`tokio`](https://github.com/tokio-rs/tokio/) or
 [`async-std`](https://github.com/async-rs/async-std).__
 
 Romio combines the powerful [`futures`][futures] abstractions with the
